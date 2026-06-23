@@ -1,23 +1,28 @@
 <!doctype html>
 <!--
-  file: songen_wo_kakeyouka_index_fixed_v20260606_38_spec_wording_cleanup.html
-  based_on: v20260606_37_no_headbutt
+  尊厳を賭けようか2 core rules:
 
-  final core rules:
+  - five-battle run mode
+  - player parts carry over between battles
+  - CPU parts reset every battle
+  - after each win from battle 1 to 4, choose recovery +1 for a broken part or score +1000
+  - battle 5 ends directly at total result
+  - total score is sum of battle scores plus reward score
+  - ranking submits total score only once at final result
   - head durability: 3 hits
+  - arm and foot durability: 2 hits
   - head broken emoji: 💩
-  - no headbutt / no head projectile
-  - attack is fist-only while at least one arm remains usable
-  - normal mid attack hits only the defender's front arm
-  - if the defender's front arm is broken, mid attack reaches heart unless the defender guards with the remaining arm
-  - the remaining arm does not automatically protect the heart during normal stance
-  - do not describe the normal route as "after both arms break"; the intended route is front arm -> heart
-  - guard: remaining arm can move forward only while guarding
-  - hit target is resolved at impact time
-  - projectile collision is checked every frame
-  - result button: ゲームを終了する returns to this game home
-  - battle labels removed; retire button added; retire submits score like normal result
-  - result share text uses enemy name plus outcome message
+  - if the front arm is broken and the back arm remains, the back arm moves to the front
+  - remaining front-effective arm can guard and punch
+  - if both legs are broken, fighter can still move at half speed
+  - jump requires both legs
+  - crouch is allowed even with broken legs
+  - if both arms are broken, attack becomes mid head / 💩 attack
+  - head attack costs 1.5 stamina
+  - head attack range is fistRange - hitWidth
+  - head attack can clash with fist attack
+  - if 💩 attack is hit by fist, count it as broken-head extra hit
+  - final result has total share and detailed report copy
 -->
 
 <!-- latest: songen_wo_kakeyouka_index_fixed_v20260606_40_remove_dangling_async / created 2026-06-06 -->
@@ -852,7 +857,7 @@
       .card { padding: 14px; border-radius: 20px; }
       .head-grid { grid-template-columns: repeat(6, 1fr); gap: 6px; }
       .head-choice { min-height: 38px; font-size: 20px; border-radius: 12px; }
-      .hud { grid-template-columns: 0.75fr 1fr 1.15fr; gap: 5px; }
+      .hud { grid-template-columns: 1fr 1fr; gap: 5px; }
       .hud-box { padding: 6px 6px; border-radius: 12px; }
       .fighter { width: 112px; height: 132px; }
       .body-grid { grid-template-columns: 32px 32px 32px; grid-template-rows: 32px 32px 32px; font-size: 28px; padding: 3px 0 0; }
@@ -1148,10 +1153,6 @@
             <div id="cpuHeadGrid" class="head-grid"></div>
           </div>
 
-          <label>
-            <div class="section-title">CPU名</div>
-            <input id="cpuNameInput" type="text" maxlength="10" placeholder="空欄ならランダム" />
-          </label>
 
           <div>
             <div class="section-title">プレイヤーの位置</div>
@@ -1379,7 +1380,6 @@ hitWidth: 46,
       toast: $("toast"),
       rulesModal: $("rulesModal"),
       playerNameInput: $("playerNameInput"),
-      cpuNameInput: $("cpuNameInput"),
       playerHeadGrid: $("playerHeadGrid"),
       cpuHeadGrid: $("cpuHeadGrid"),
       battleNoValue: $("battleNoValue"),
@@ -1591,7 +1591,7 @@ hitWidth: 46,
     function collectSettings() {
       const playerName = sanitizeName(dom.playerNameInput.value, "名無し", 12);
       try { localStorage.setItem("songen_player_name", playerName); } catch (error) {}
-      const cpuName = sanitizeName(dom.cpuNameInput.value, RUN_ENEMIES[0], 10);
+      const cpuName = RUN_ENEMIES[0];
       const playerHead = selectedPlayerHead || randItem(HEADS);
       const cpuHead = selectedCpuHead || randItem(HEADS);
       const playerSide = document.querySelector('input[name="playerSide"]:checked')?.value || "left";
@@ -2189,6 +2189,7 @@ hitWidth: 46,
         const a = state.projectiles[i];
         if (a.removed || a.resolved) continue;
         for (let j = i + 1; j < state.projectiles.length; j++) {
+          if (a.removed || a.resolved) break;
           const b = state.projectiles[j];
           if (b.removed || b.resolved) continue;
           if (a.owner === b.owner) continue;
@@ -2202,7 +2203,7 @@ hitWidth: 46,
             a.removed = true; b.removed = true; a.resolved = true; b.resolved = true;
             if (a.el) a.el.remove();
             if (b.el) b.el.remove();
-            continue;
+            break;
           }
 
           const head = a.type === "head" && b.type === "fist" ? a : (b.type === "head" && a.type === "fist" ? b : null);
@@ -2210,6 +2211,7 @@ hitWidth: 46,
           if (!head || !fist) continue;
           if (!(head.height === fist.height || (head.height === "mid" && fist.height === "mid"))) continue;
           resolveHeadFistCollision(head, fist, nowMs());
+          break;
         }
       }
     }
@@ -2894,7 +2896,7 @@ hitWidth: 46,
     function makeDetailedReportText(runResult) {
       const lines = [`【${GAME.title} 詳細レポート】`, "", `結果：${runResult.resultLabel}`, `総合スコア：${runResult.totalScore}点`, `勝利数：${runResult.wins} / ${runResult.maxBattles}`];
       runResult.reports.forEach((r) => {
-        lines.push("", "--------------------", `第${r.battleNo}戦：${r.enemyName}`, `結果：${r.outcomeLabel}`, `戦闘スコア：${r.battleScore}点`, `経過：${r.elapsedSec}秒`, "", `攻撃：${r.attacks}回`, `うち頭攻撃：${r.headAttacks}回`, `ガード成功：${r.guardSuccess}回`, "", `敵破壊：${r.enemyPartsBroken}部位`, `敵頭破壊：${r.enemyHeadBroken}`, `壊れた敵頭への追加攻撃：${r.enemyBrokenPartHits}回`, "", `自分破壊：${r.playerPartsBroken}部位`, `自分頭破壊：${r.playerHeadBroken}`, `壊れた自分頭への追加被弾：${r.playerBrokenPartHits}回`, "", `頭攻撃相殺：${r.playerHeadAttackClashes + r.cpuHeadAttackClashes}回`, `💩攻撃を叩かれた回数：${r.playerPoopAttackClashes}回`, "", "スコア内訳：", `勝利ボーナス：${signed(r.scoreBreakdown.victory)}`, `攻撃回数：${signed(r.scoreBreakdown.attacks)}`, `ガード成功：${signed(r.scoreBreakdown.guardSuccess)}`, `敵通常部位破壊：${signed(r.scoreBreakdown.enemyBodyPartsBroken)}`, `敵頭破壊：${signed(r.scoreBreakdown.enemyHeadBroken)}`, `壊れた敵頭への追加攻撃：${signed(r.scoreBreakdown.enemyBrokenPartHits)}`, `自分部位破壊：${signed(r.scoreBreakdown.playerPartsBroken)}`, `壊れた自分頭への追加被弾：${signed(r.scoreBreakdown.playerBrokenPartHits)}`, `経過秒数：${signed(r.scoreBreakdown.elapsed)}`, "", `戦闘前の状態：${describeParts(r.playerPartsBefore)}`, `戦闘後の状態：${describeParts(r.playerPartsAfterBattle)}`, `報酬：${r.reward || "なし"}`, `報酬後の状態：${r.playerPartsAfterReward ? describeParts(r.playerPartsAfterReward) : "なし"}`);
+        lines.push("", "--------------------", `第${r.battleNo}戦：${r.enemyName}`, `結果：${r.outcomeLabel}`, `戦闘スコア：${r.battleScore}点`, `経過：${r.elapsedSec}秒`, "", `攻撃：${r.attacks}回`, `うち頭攻撃：${r.headAttacks}回`, `ガード成功：${r.guardSuccess}回`, "", `敵破壊：${r.enemyPartsBroken}部位`, `敵頭破壊：${r.enemyHeadBroken}`, `壊れた敵頭への追加攻撃：${r.enemyBrokenPartHits}回`, "", `自分破壊：${r.playerPartsBroken}部位`, `自分頭破壊：${r.playerHeadBroken}`, `壊れた自分頭への追加被弾：${r.playerBrokenPartHits}回`, "", `自分の頭攻撃相殺：${r.playerHeadAttackClashes}回`, `自分の💩攻撃を叩かれた回数：${r.playerPoopAttackClashes}回`, `敵の頭攻撃を相殺：${r.cpuHeadAttackClashes}回`, `敵の💩攻撃を叩いた回数：${r.cpuPoopAttackClashes}回`, "", "スコア内訳：", `勝利ボーナス：${signed(r.scoreBreakdown.victory)}`, `攻撃回数：${signed(r.scoreBreakdown.attacks)}`, `ガード成功：${signed(r.scoreBreakdown.guardSuccess)}`, `敵通常部位破壊：${signed(r.scoreBreakdown.enemyBodyPartsBroken)}`, `敵頭破壊：${signed(r.scoreBreakdown.enemyHeadBroken)}`, `壊れた敵頭への追加攻撃：${signed(r.scoreBreakdown.enemyBrokenPartHits)}`, `自分部位破壊：${signed(r.scoreBreakdown.playerPartsBroken)}`, `壊れた自分頭への追加被弾：${signed(r.scoreBreakdown.playerBrokenPartHits)}`, `経過秒数：${signed(r.scoreBreakdown.elapsed)}`, "", `戦闘前の状態：${describeParts(r.playerPartsBefore)}`, `戦闘後の状態：${describeParts(r.playerPartsAfterBattle)}`, `報酬：${r.reward || "なし"}`, `報酬後の状態：${r.playerPartsAfterReward ? describeParts(r.playerPartsAfterReward) : "なし"}`);
       });
       lines.push("", "--------------------", `戦闘スコア合計：${runResult.totalBattleScore}点`, `報酬スコア加算：${runResult.rewardScoreTotal}点`, `総合スコア：${runResult.totalScore}点`);
       return lines.join("\n");
@@ -3237,17 +3239,7 @@ function getSupabasePublishableKey() {
         continueAfterOutcome();
       });
       bindTapButton(dom.buttons.resultLab, () => {
-        state.running = false;
-        state.countdown = false;
-        state.ended = true;
-        disableGameplayBrowserGuard();
-        cancelAnimationFrame(state.rafId);
-        clearInterval(state.countdownTimer);
-        state.keys.left = false;
-        state.keys.right = false;
-        state.keys.crouch = false;
-        dom.stage.querySelectorAll(".projectile,.float-fx").forEach((el) => el.remove());
-        showScreen("home");
+        location.href = GAME.labUrl;
       });
       bindTapButton(dom.buttons.retry, () => {
         showSetup();
