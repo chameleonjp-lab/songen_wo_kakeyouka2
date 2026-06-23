@@ -27,7 +27,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="format-detection" content="telephone=no" />
-  <title>尊厳を賭けようか</title>
+  <title>尊厳を賭けようか2</title>
   <style>
     :root {
       --bg: #101218;
@@ -572,6 +572,32 @@
       transform: translateY(0);
     }
 
+    .run-info, .detail-report {
+      white-space: pre-wrap;
+      line-height: 1.7;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .detail-report {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(0,0,0,0.18);
+      max-height: 42dvh;
+      overflow: auto;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .detail-report-fallback {
+      width: 100%;
+      min-height: 180px;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+
     .projectile {
       position: absolute;
       z-index: 20;
@@ -585,6 +611,14 @@
       filter: drop-shadow(0 7px 12px rgba(0,0,0,0.55));
       will-change: left, top;
       pointer-events: none;
+    }
+
+    .projectile.head-attack.to-right {
+      transform: translate(-50%, -50%) rotate(18deg);
+    }
+
+    .projectile.head-attack.to-left {
+      transform: translate(-50%, -50%) rotate(-18deg);
     }
 
     .float-fx {
@@ -1053,8 +1087,8 @@
     <section id="homeScreen" class="screen active" aria-label="ホーム画面">
       <div class="card">
         <div class="heart-logo">🫀</div>
-        <h1 class="title">尊厳を<br />賭けようか</h1>
-        <p class="subtitle">相手の頭を！心臓を！拳で殴って尊厳破壊！</p>
+        <h1 class="title">尊厳を<br />賭けようか2</h1>
+        <p class="subtitle">5人抜きで尊厳を守れ。<br />壊れた体を引きずって、次の相手へ進め。</p>
         <div class="button-stack">
           <button id="homeStartBtn" class="primary">ゲーム開始</button>
           <button id="homeShareBtn">ゲームをシェア</button>
@@ -1069,12 +1103,24 @@
         <h2 id="rulesModalTitle" class="section-title">ルール</h2>
         <ul class="rule-list">
           <li>相手の🫀を🤜で殴れば勝利</li>
+          <li>勝つと次の相手へ進みます</li>
+          <li>最大5人抜きです</li>
+          <li>壊れた頭・腕・足は次の戦闘へ持ち越します</li>
+          <li>勝利後は、壊れた部位を1回復するか、スコア+1000を選べます</li>
+          <li>第5戦に勝つと5人抜き達成です</li>
           <li>攻撃🤜とガード💪はスタミナを消費する</li>
           <li>スタミナは一定時間で回復</li>
           <li>🤜には射程距離がある</li>
           <li>頭は3回、💪🦵は2回攻撃で壊れる</li>
           <li>ガードには💪が必要</li>
-          <li>ジャンプには🦵が必要</li>
+          <li>ジャンプには両方の🦵が必要</li>
+          <li>前面の💪が壊れると、残った💪を前に出して戦えます</li>
+          <li>両方の🦵が壊れても、半分の速度で移動できます</li>
+          <li>両方の💪が壊れると、頭または💩で中段攻撃できます</li>
+          <li>頭攻撃は🤜より短く、スタミナを1.5使います</li>
+          <li>頭攻撃は🤜と相殺します</li>
+          <li>相殺されると、自分の頭にダメージが入ります</li>
+          <li>💩攻撃を叩かれると、壊れた頭への追加被弾として減点されます</li>
         </ul>
         <div class="button-stack">
           <button id="rulesCloseBtn" class="primary">閉じる</button>
@@ -1124,6 +1170,8 @@
 
     <section id="battleScreen" class="screen battle-screen" aria-label="戦闘画面">
       <div class="hud">
+        <div class="hud-box"><span class="hud-label">BATTLE</span><span id="battleNoValue" class="hud-value">第1戦 / 5</span></div>
+        <div class="hud-box"><span class="hud-label">ENEMY</span><span id="enemyNameValue" class="hud-value">相手：徘徊者</span></div>
         <div class="hud-box"><span class="hud-label">TIME</span><span id="timeValue" class="hud-value">180</span></div>
         <div class="hud-box"><span class="hud-label">SCORE</span><span id="scoreValue" class="hud-value">0点</span></div>
       </div>
@@ -1214,6 +1262,14 @@
       </div>
     </section>
 
+    <section id="rewardScreen" class="screen" aria-label="報酬選択画面">
+      <div class="card">
+        <div id="rewardTitle" class="result-main">第1戦 勝利</div>
+        <div id="rewardInfo" class="note-text"></div>
+        <div id="rewardChoices" class="button-stack"></div>
+      </div>
+    </section>
+
     <section id="resultScreen" class="screen" aria-label="結果画面">
       <div class="card">
         <div id="resultMain" class="result-main">結果</div>
@@ -1226,11 +1282,14 @@
           <div class="break-row"><span>壊された自分パーツ数</span><strong id="bdPlayerBroken">0</strong></div>
           <div class="break-row"><span>経過秒数</span><strong id="bdElapsed">0秒</strong></div>
         </div>
+        <div id="detailReport" class="detail-report"></div>
+        <textarea id="detailReportFallback" class="detail-report-fallback hidden" readonly></textarea>
         <div id="sendStatus" class="send-status">ランキング送信中...</div>
         <div class="button-stack">
-          <button id="retryBtn" class="primary">もう一度</button>
-          <button id="resultShareBtn">結果をシェア</button>
-          <button id="resultLabBtn">ゲームを終了する</button>
+          <button id="resultShareBtn">総合結果をシェア</button>
+          <button id="copyDetailBtn">詳細レポートをコピー</button>
+          <button id="retryBtn" class="primary">もう一度遊ぶ</button>
+          <button id="resultLabBtn">他のゲームで遊ぶ</button>
         </div>
       </div>
     </section>
@@ -1250,13 +1309,17 @@
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_drzcy0v97knU6FgjqSgBHw_0A9XPdFM";
 
     const GAME = Object.freeze({
-      title: "尊厳を賭けようか",
-      slug: "songen_wo_kakeyouka",
-      url: "https://chameleonjp.codeberg.page/songen_wo_kakeyouka/",
+      title: "尊厳を賭けようか2",
+      slug: "songen_wo_kakeyouka2",
+      url: "https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/",
       labUrl: "https://chameleonjp.codeberg.page/chameleonjp_lab/",
       durationSec: 180,
-      version: "songen_wo_kakeyouka_v1_20260606_40_remove_dangling_async"
+      version: "songen_wo_kakeyouka2_v1_20260623_01_five_battles_head_attack"
     });
+
+    const RUN_MAX_BATTLES = 5;
+    const REWARD_SCORE = 1000;
+    const RUN_ENEMIES = ["徘徊者", "コメ職人", "荒らし", "モデレーター", "尊厳の管理人"];
 
     const HEADS = ["𓃾", "𓃿", "𓄀", "𓄁", "𓄃", "𓄇", "𓅿", "𓆀", "𓆁", "🌕", "🌝", "🔵", "😺", "🐶", "🐯", "🦊", "🐹", "🐻"];
     const CPU_NAMES = ["徘徊者", "リスナー", "配信者", "枠主", "荒らし", "ROM専", "コメ専", "コメ職人", "ガヤ", "モデレーター", "オーナー"];
@@ -1308,6 +1371,7 @@ hitWidth: 46,
         setup: $("setupScreen"),
         battle: $("battleScreen"),
         outcome: $("outcomeScreen"),
+        reward: $("rewardScreen"),
         result: $("resultScreen")
       },
       stage: $("stage"),
@@ -1318,6 +1382,8 @@ hitWidth: 46,
       cpuNameInput: $("cpuNameInput"),
       playerHeadGrid: $("playerHeadGrid"),
       cpuHeadGrid: $("cpuHeadGrid"),
+      battleNoValue: $("battleNoValue"),
+      enemyNameValue: $("enemyNameValue"),
       timeValue: $("timeValue"),
       scoreValue: $("scoreValue"),
       staminaValue: $("staminaValue"),
@@ -1349,7 +1415,12 @@ hitWidth: 46,
       bdEnemyBroken: $("bdEnemyBroken"),
       bdPlayerBroken: $("bdPlayerBroken"),
       bdElapsed: $("bdElapsed"),
+      detailReport: $("detailReport"),
+      detailReportFallback: $("detailReportFallback"),
       sendStatus: $("sendStatus"),
+      rewardTitle: $("rewardTitle"),
+      rewardInfo: $("rewardInfo"),
+      rewardChoices: $("rewardChoices"),
       fighters: {
         player: {
           root: $("playerFighter"), name: $("playerFighterName"), headRow: $("playerHeadRow"), head: $("playerHeadPart"),
@@ -1366,7 +1437,7 @@ hitWidth: 46,
         setupStart: $("setupStartBtn"), setupBack: $("setupBackBtn"),
         retire: $("retireBtn"),
         outcomeResult: $("outcomeResultBtn"),
-        retry: $("retryBtn"), resultShare: $("resultShareBtn"), resultLab: $("resultLabBtn"),
+        retry: $("retryBtn"), resultShare: $("resultShareBtn"), copyDetail: $("copyDetailBtn"), resultLab: $("resultLabBtn"),
         left: $("leftBtn"), right: $("rightBtn"), jump: $("jumpBtn"), crouch: $("crouchBtn"), attack: $("attackBtn"), guard: $("guardBtn")
       }
     };
@@ -1376,6 +1447,22 @@ hitWidth: 46,
     let lastSettings = null;
     let lastResult = null;
     let toastTimer = null;
+
+    const runState = {
+      active: false,
+      battleNo: 1,
+      maxBattles: RUN_MAX_BATTLES,
+      playerCarryParts: null,
+      battleReports: [],
+      rewardScoreTotal: 0,
+      selectedRewards: [],
+      wins: 0,
+      finalOutcome: null,
+      totalScore: 0,
+      totalBattleScore: 0,
+      settings: null,
+      result: null
+    };
 
     const state = {
       running: false,
@@ -1504,11 +1591,77 @@ hitWidth: 46,
     function collectSettings() {
       const playerName = sanitizeName(dom.playerNameInput.value, "名無し", 12);
       try { localStorage.setItem("songen_player_name", playerName); } catch (error) {}
-      const cpuName = sanitizeName(dom.cpuNameInput.value, randItem(CPU_NAMES), 10);
+      const cpuName = sanitizeName(dom.cpuNameInput.value, RUN_ENEMIES[0], 10);
       const playerHead = selectedPlayerHead || randItem(HEADS);
       const cpuHead = selectedCpuHead || randItem(HEADS);
       const playerSide = document.querySelector('input[name="playerSide"]:checked')?.value || "left";
       return { playerName, cpuName, playerHead, cpuHead, playerSide };
+    }
+
+    function startRun() {
+      const settings = collectSettings();
+      runState.active = true;
+      runState.battleNo = 1;
+      runState.maxBattles = RUN_MAX_BATTLES;
+      runState.playerCarryParts = null;
+      runState.battleReports = [];
+      runState.rewardScoreTotal = 0;
+      runState.selectedRewards = [];
+      runState.wins = 0;
+      runState.finalOutcome = null;
+      runState.totalScore = 0;
+      runState.totalBattleScore = 0;
+      runState.settings = settings;
+      runState.result = null;
+      startBattleInRun();
+    }
+
+    function startBattleInRun() {
+      const settings = Object.assign({}, runState.settings || collectSettings());
+      const idx = clamp(runState.battleNo - 1, 0, RUN_ENEMIES.length - 1);
+      settings.cpuName = RUN_ENEMIES[idx];
+      settings.cpuHead = selectedCpuHead || randItem(HEADS);
+      setupBattle(settings);
+    }
+
+    function cloneParts(parts) {
+      const out = {};
+      ["head", "leftArm", "rightArm", "leftFoot", "rightFoot"].forEach((part) => {
+        out[part] = { damage: Number(parts?.[part]?.damage || 0), broken: Boolean(parts?.[part]?.broken) };
+      });
+      return out;
+    }
+
+    function snapshotParts(fighter) { return cloneParts(fighter.parts); }
+    function applyCarryParts(fighter, carryParts) {
+      if (!fighter || !carryParts) return;
+      Object.entries(cloneParts(carryParts)).forEach(([part, data]) => {
+        if (fighter.parts[part]) fighter.parts[part] = { damage: data.damage, broken: data.broken };
+      });
+    }
+
+    function describeParts(parts) {
+      if (!parts) return "全身無事";
+      const labels = { head: "頭", leftArm: "左腕", rightArm: "右腕", leftFoot: "左足", rightFoot: "右足" };
+      const items = [];
+      Object.keys(labels).forEach((part) => {
+        const data = parts[part];
+        if (!data) return;
+        if (data.broken) items.push(`${labels[part]}なし`);
+        else if (data.damage > 0) items.push(`${labels[part]}負傷`);
+      });
+      return items.length ? items.join("、") : "全身無事";
+    }
+
+    function getBrokenRecoverableParts(parts) {
+      return ["head", "leftArm", "rightArm", "leftFoot", "rightFoot"].filter((part) => parts?.[part]?.broken);
+    }
+
+    function applyPartRecovery(parts, part) {
+      if (!parts?.[part]?.broken) return false;
+      parts[part].damage = Math.max(0, parts[part].damage - 1);
+      parts[part].broken = false;
+      return true;
     }
 
     function createFighter(id, name, head, x) {
@@ -1588,6 +1741,8 @@ hitWidth: 46,
       const cpuX = state.playerOnLeft ? rightX : leftX;
       state.player = createFighter("player", settings.playerName, settings.playerHead, playerX);
       state.cpu = createFighter("cpu", settings.cpuName, settings.cpuHead, cpuX);
+      if (runState.active && runState.playerCarryParts) applyCarryParts(state.player, runState.playerCarryParts);
+      state.playerPartsBefore = snapshotParts(state.player);
       state.stats = {
         attacks: 0,
         guardSuccess: 0,
@@ -1598,7 +1753,12 @@ hitWidth: 46,
         enemyBrokenPartHits: 0,
         playerBrokenPartHits: 0,
         elapsedSec: 0,
-        score: 0
+        score: 0,
+        headAttacks: 0,
+        playerHeadAttackClashes: 0,
+        cpuHeadAttackClashes: 0,
+        playerPoopAttackClashes: 0,
+        cpuPoopAttackClashes: 0
       };
       renderHud(0);
       renderAll();
@@ -1718,8 +1878,8 @@ hitWidth: 46,
       if (timestamp >= state.cpuBrain.nextAttackCheck) {
         state.cpuBrain.nextAttackCheck = timestamp + 360 + Math.random() * 280;
         const dist = Math.abs(player.x - cpu.x);
-        const range = LIMITS.fistRange;
-        if (hasAnyArm(cpu) && dist <= range + 12 && cpu.stamina >= 1 && Math.random() < 0.42) {
+        const range = attackRangeFor(cpu);
+        if (dist <= range + 12 && cpu.stamina >= attackStaminaCostFor(cpu) && Math.random() < 0.42) {
           if (!isJumping(cpu) && Math.random() < 0.22 && canJump(cpu)) {
             jump(cpu, timestamp);
           }
@@ -1729,13 +1889,12 @@ hitWidth: 46,
     }
 
     function canMove(fighter) {
-      return !fighter.parts.leftFoot.broken || !fighter.parts.rightFoot.broken;
+      return true;
     }
 
     function movementMultiplier(fighter) {
       const brokenCount = Number(fighter.parts.leftFoot.broken) + Number(fighter.parts.rightFoot.broken);
-      if (brokenCount >= 2) return 0;
-      if (brokenCount === 1) return 0.5;
+      if (brokenCount >= 1) return 0.5;
       return 1;
     }
 
@@ -1821,55 +1980,47 @@ hitWidth: 46,
       return !fighter.parts.leftArm.broken || !fighter.parts.rightArm.broken;
     }
 
+    function attackKindFor(fighter) { return hasAnyArm(fighter) ? "fist" : "head"; }
+    function attackStaminaCostFor(fighter) { return attackKindFor(fighter) === "head" ? 1.5 : 1; }
+    function attackRangeFor(fighter) { return attackKindFor(fighter) === "head" ? Math.max(32, LIMITS.fistRange - LIMITS.hitWidth) : LIMITS.fistRange; }
+    function canHeadAttack(fighter, timestamp) { return !hasAnyArm(fighter) && !isJumping(fighter) && fighter.stamina >= 1.5 && timestamp - fighter.lastAttackAt >= LIMITS.attackCooldownMs; }
+
     function canAttack(fighter, timestamp) {
-      // 攻撃は拳のみ。頭突きは存在しない。
-      // 通常の決着ルートは「防御側の前面腕が壊れる → 心臓に通る」。
-      // ここは想定外の保険として、使える腕が1本もない場合だけ攻撃不可にする。
-      if (fighter.stamina < 1) return false;
+      if (attackKindFor(fighter) === "head" && !canHeadAttack(fighter, timestamp)) return false;
+      if (fighter.stamina < attackStaminaCostFor(fighter)) return false;
       if (timestamp - fighter.lastAttackAt < LIMITS.attackCooldownMs) return false;
-      return hasAnyArm(fighter);
+      return true;
+    }
+
+    function createAttackProjectile(fighter, timestamp) {
+      const target = fighter.id === "player" ? state.cpu : state.player;
+      const dir = target.x > fighter.x ? 1 : -1;
+      const kind = attackKindFor(fighter);
+      const height = kind === "head" ? "mid" : attackHeightFor(fighter);
+      const range = attackRangeFor(fighter);
+      const emoji = kind === "head" ? (fighter.parts.head.broken ? "💩" : fighter.head) : (dir > 0 ? "🤜" : "🤛");
+      const startX = fighter.x + dir * (kind === "head" ? 16 : 24);
+      const endX = fighter.x + dir * range;
+      const travel = Math.abs(endX - startX);
+      return {
+        id: state.projectileSeq++, owner: fighter.id, target: target.id, type: kind,
+        poop: kind === "head" && fighter.parts.head.broken,
+        height, emoji, startX, endX, previousX: startX, currentX: startX,
+        y: kind === "head" ? yForHeight("mid", fighter) : yForAttackHeight(height, fighter),
+        dir, createdAt: timestamp, durationMs: attackDuration(travel) * 1000,
+        progress: 0, removed: false, resolved: false, el: null
+      };
     }
 
     function doAttack(fighter, timestamp) {
       if (!canAttack(fighter, timestamp)) return false;
-      const target = fighter.id === "player" ? state.cpu : state.player;
-      const dir = target.x > fighter.x ? 1 : -1;
-      const height = attackHeightFor(fighter);
-      const range = LIMITS.fistRange;
-      const emoji = dir > 0 ? "🤜" : "🤛";
-
-      // 弾の終点は相手の中心ではなく、攻撃の最大射程。
-      // 実際の命中は毎フレームの現在座標と相手パーツ座標の交差で決める。
-      const startX = fighter.x + dir * 24;
-      const endX = fighter.x + dir * range;
-      const travel = Math.abs(endX - startX);
-      const duration = attackDuration(travel);
-
-      fighter.stamina = Math.max(0, fighter.stamina - 1);
+      const projectile = createAttackProjectile(fighter, timestamp);
+      fighter.stamina = Math.max(0, fighter.stamina - attackStaminaCostFor(fighter));
       fighter.lastAttackAt = timestamp;
-
-      if (fighter.id === "player") state.stats.attacks += 1;
-
-      const projectile = {
-        id: state.projectileSeq++,
-        owner: fighter.id,
-        target: target.id,
-        type: "fist",
-        height,
-        emoji,
-        startX,
-        endX,
-        previousX: startX,
-        currentX: startX,
-        y: yForAttackHeight(height, fighter),
-        dir,
-        createdAt: timestamp,
-        durationMs: duration * 1000,
-        progress: 0,
-        removed: false,
-        resolved: false,
-        el: null
-      };
+      if (fighter.id === "player") {
+        state.stats.attacks += 1;
+        if (projectile.type === "head") state.stats.headAttacks += 1;
+      }
       projectile.el = createProjectileEl(projectile);
       state.projectiles.push(projectile);
       if (fighter.id === "player") maybeCpuGuard(projectile, timestamp);
@@ -1892,7 +2043,7 @@ hitWidth: 46,
 
     function createProjectileEl(projectile) {
       const el = document.createElement("div");
-      el.className = "projectile";
+      el.className = projectile.type === "head" ? `projectile head-attack ${projectile.dir > 0 ? "to-right" : "to-left"}` : "projectile";
       el.textContent = projectile.emoji;
       el.style.left = `${projectile.startX}px`;
       el.style.top = `${projectile.y}px`;
@@ -2007,21 +2158,58 @@ hitWidth: 46,
       }
     }
 
+    function resolveHeadFistCollision(headProjectile, fistProjectile, timestamp) {
+      const headOwner = headProjectile.owner === "player" ? state.player : state.cpu;
+      createEffect("💥", ((headProjectile.currentX || headProjectile.startX) + (fistProjectile.currentX || fistProjectile.startX)) / 2, headProjectile.y);
+      headProjectile.removed = true;
+      fistProjectile.removed = true;
+      headProjectile.resolved = true;
+      fistProjectile.resolved = true;
+      if (headProjectile.el) headProjectile.el.remove();
+      if (fistProjectile.el) fistProjectile.el.remove();
+      if (headProjectile.poop) {
+        if (headProjectile.owner === "player") {
+          state.stats.playerBrokenPartHits += 1;
+          state.stats.playerPoopAttackClashes += 1;
+          createEffect("-300", headOwner.x, yForPart(headOwner, "head"));
+        } else {
+          state.stats.enemyBrokenPartHits += 1;
+          state.stats.cpuPoopAttackClashes += 1;
+          createEffect("+300", headOwner.x, yForPart(headOwner, "head"));
+        }
+      } else {
+        if (headProjectile.owner === "player") state.stats.playerHeadAttackClashes += 1;
+        else state.stats.cpuHeadAttackClashes += 1;
+        damagePart(headOwner, "head", fistProjectile.owner);
+      }
+    }
+
     function resolveProjectileCollisions() {
       for (let i = 0; i < state.projectiles.length; i++) {
         const a = state.projectiles[i];
-        if (a.removed || a.type !== "fist") continue;
+        if (a.removed || a.resolved) continue;
         for (let j = i + 1; j < state.projectiles.length; j++) {
           const b = state.projectiles[j];
-          if (b.removed || b.type !== "fist") continue;
-          if (a.owner === b.owner || a.height !== b.height) continue;
-          if (Math.abs((a.currentX || a.startX) - (b.currentX || b.startX)) <= 28) {
-            createEffect("💥", ((a.currentX || a.startX) + (b.currentX || b.startX)) / 2, a.y);
-            a.removed = true;
-            b.removed = true;
+          if (b.removed || b.resolved) continue;
+          if (a.owner === b.owner) continue;
+          const ax = a.currentX || a.startX;
+          const bx = b.currentX || b.startX;
+          if (Math.abs(ax - bx) > 28) continue;
+
+          if (a.type === "fist" && b.type === "fist") {
+            if (a.height !== b.height) continue;
+            createEffect("💥", (ax + bx) / 2, a.y);
+            a.removed = true; b.removed = true; a.resolved = true; b.resolved = true;
             if (a.el) a.el.remove();
             if (b.el) b.el.remove();
+            continue;
           }
+
+          const head = a.type === "head" && b.type === "fist" ? a : (b.type === "head" && a.type === "fist" ? b : null);
+          const fist = head === a ? b : (head === b ? a : null);
+          if (!head || !fist) continue;
+          if (!(head.height === fist.height || (head.height === "mid" && fist.height === "mid"))) continue;
+          resolveHeadFistCollision(head, fist, nowMs());
         }
       }
     }
@@ -2178,8 +2366,7 @@ hitWidth: 46,
     }
 
     function frontAliveArm(target, attacker) {
-      const front = getNearPart(target, attacker, "Arm");
-      return target.parts[front].broken ? null : front;
+      return effectiveFrontArm(target, attacker);
     }
 
     
@@ -2209,13 +2396,17 @@ hitWidth: 46,
       return getNearPart(target, attacker, "Arm");
     }
 
-    function selectedGuardArm(target, attacker) {
-      if (!attacker) return null;
-      const front = frontArmFor(target, attacker);
+    function effectiveFrontArm(fighter, opponent) {
+      if (!fighter || !opponent) return null;
+      const front = frontArmFor(fighter, opponent);
       const back = oppositePart(front);
-      if (back && !target.parts[back].broken) return back;
-      if (!target.parts[front].broken) return front;
+      if (front && fighter.parts[front] && !fighter.parts[front].broken) return front;
+      if (back && fighter.parts[back] && !fighter.parts[back].broken) return back;
       return null;
+    }
+
+    function selectedGuardArm(target, attacker) {
+      return effectiveFrontArm(target, attacker);
     }
 
     function damagePart(target, part, ownerId) {
@@ -2280,6 +2471,9 @@ hitWidth: 46,
       if (String(part).includes("Arm")) {
         const guardActive = target.guardUntil > nowMs() && hasAnyArm(target) && !isJumping(target) && attacker;
         if (guardActive && selectedGuardArm(target, attacker) === part) {
+          return staticPartOffset(frontArmFor(target, attacker));
+        }
+        if (attacker && effectiveFrontArm(target, attacker) === part && frontArmFor(target, attacker) !== part) {
           return staticPartOffset(frontArmFor(target, attacker));
         }
         return staticPartOffset(part);
@@ -2358,27 +2552,24 @@ hitWidth: 46,
 
     function renderArms(fighter, fdom) {
       const opponent = fighter.id === "player" ? state.cpu : state.player;
-      const guardActive = fighter.guardUntil > nowMs() && hasAnyArm(fighter) && !isJumping(fighter) && opponent;
-      const front = opponent ? frontArmFor(fighter, opponent) : "rightArm";
-      const back = oppositePart(front);
-      const guardArm = guardActive ? selectedGuardArm(fighter, opponent) : null;
-
+      const front = opponent ? frontArmFor(fighter, opponent) : "leftArm";
+      const effective = opponent ? effectiveFrontArm(fighter, opponent) : null;
+      const guardActive = fighter.guardUntil > nowMs() && effective && !isJumping(fighter);
       let leftText = fighter.parts.leftArm.broken ? "" : "💪";
       let rightText = fighter.parts.rightArm.broken ? "" : "💪";
       let leftGuard = false;
       let rightGuard = false;
 
-      if (guardActive && guardArm) {
-        // ガード中は腕を追加表示しない。残っている腕そのものを前側セルへ移す。
+      if (effective && effective !== front) {
         leftText = "";
         rightText = "";
-        if (front === "leftArm") {
-          leftText = "💪";
-          leftGuard = true;
-        } else {
-          rightText = "💪";
-          rightGuard = true;
-        }
+        if (front === "leftArm") leftText = "💪";
+        else rightText = "💪";
+      }
+
+      if (guardActive) {
+        leftGuard = front === "leftArm";
+        rightGuard = front === "rightArm";
       }
 
       fdom.leftArm.textContent = leftText;
@@ -2429,6 +2620,8 @@ hitWidth: 46,
 
     function renderHud(elapsed) {
       const remain = Math.max(0, Math.ceil(GAME.durationSec - elapsed));
+      if (dom.battleNoValue) dom.battleNoValue.textContent = `第${runState.active ? runState.battleNo : 1}戦 / ${RUN_MAX_BATTLES}`;
+      if (dom.enemyNameValue && state.cpu) dom.enemyNameValue.textContent = `相手：${state.cpu.name}`;
       dom.timeValue.textContent = String(remain);
       dom.scoreValue.textContent = `${state.stats.score}点`;
       dom.staminaValue.textContent = state.player.stamina.toFixed(1);
@@ -2472,6 +2665,54 @@ hitWidth: 46,
       }
     }
 
+    function makeScoreBreakdown(stats, elapsedSec, outcome) {
+      return {
+        victory: outcome === "win" ? 5000 : 0,
+        attacks: -30 * stats.attacks,
+        guardSuccess: 120 * stats.guardSuccess,
+        enemyBodyPartsBroken: 300 * Math.max(0, stats.enemyPartsBroken - stats.enemyHeadBroken),
+        enemyHeadBroken: 1000 * stats.enemyHeadBroken,
+        enemyBrokenPartHits: 300 * stats.enemyBrokenPartHits,
+        playerPartsBroken: -500 * stats.playerPartsBroken,
+        playerBrokenPartHits: -300 * stats.playerBrokenPartHits,
+        elapsed: -10 * elapsedSec
+      };
+    }
+
+    function createBattleReport(result) {
+      const breakdown = makeScoreBreakdown(state.stats, result.elapsedSec, result.outcome);
+      return {
+        battleNo: runState.active ? runState.battleNo : 1,
+        playerName: state.player.name,
+        playerHead: state.player.head,
+        enemyName: state.cpu.name,
+        enemyHead: state.cpu.head,
+        outcome: result.outcome,
+        outcomeLabel: (RESULT_TEXT[result.outcome] || RESULT_TEXT.draw).label,
+        battleScore: result.score,
+        elapsedSec: result.elapsedSec,
+        attacks: state.stats.attacks,
+        headAttacks: state.stats.headAttacks || 0,
+        guardSuccess: state.stats.guardSuccess,
+        enemyPartsBroken: state.stats.enemyPartsBroken,
+        enemyHeadBroken: state.stats.enemyHeadBroken,
+        enemyBrokenPartHits: state.stats.enemyBrokenPartHits,
+        playerPartsBroken: state.stats.playerPartsBroken,
+        playerHeadBroken: state.stats.playerHeadBroken,
+        playerBrokenPartHits: state.stats.playerBrokenPartHits,
+        playerHeadAttackClashes: state.stats.playerHeadAttackClashes || 0,
+        cpuHeadAttackClashes: state.stats.cpuHeadAttackClashes || 0,
+        playerPoopAttackClashes: state.stats.playerPoopAttackClashes || 0,
+        cpuPoopAttackClashes: state.stats.cpuPoopAttackClashes || 0,
+        scoreBreakdown: breakdown,
+        playerPartsBefore: cloneParts(state.playerPartsBefore || state.player.parts),
+        playerPartsAfterBattle: snapshotParts(state.player),
+        reward: null,
+        rewardScore: 0,
+        playerPartsAfterReward: null
+      };
+    }
+
     function finishBattle(outcome, fixedElapsedSec) {
       if (state.ended) return;
       state.ended = true;
@@ -2497,9 +2738,93 @@ hitWidth: 46,
       };
       lastResult = result;
       setBattleControlsEnabled(false);
-      populateResult(result);
-      sendScoreAfterResult(result);
+      const report = createBattleReport(result);
+      if (runState.active) {
+        runState.battleReports.push(report);
+        runState.playerCarryParts = snapshotParts(state.player);
+        if (outcome === "win") runState.wins += 1;
+      }
       showOutcomeAfterFinish(result);
+    }
+
+    function showRewardSelection(report) {
+      dom.rewardTitle.textContent = `第${report.battleNo}戦 勝利`;
+      const currentTotal = runState.battleReports.reduce((sum, r) => sum + r.battleScore, 0) + runState.rewardScoreTotal;
+      dom.rewardInfo.textContent = `戦闘スコア：${report.battleScore}点\n現在の総合スコア：${currentTotal}点\n現在の状態：${describeParts(runState.playerCarryParts)}\n報酬を選んでください`;
+      dom.rewardChoices.innerHTML = "";
+      const labels = { head: "頭", leftArm: "左腕", rightArm: "右腕", leftFoot: "左足", rightFoot: "右足" };
+      getBrokenRecoverableParts(runState.playerCarryParts).forEach((part) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = `${labels[part]}を1回復`;
+        btn.addEventListener("click", () => applyReward({ type: "recover", part, label: `${labels[part]}を1回復` }));
+        dom.rewardChoices.appendChild(btn);
+      });
+      const scoreBtn = document.createElement("button");
+      scoreBtn.type = "button";
+      scoreBtn.className = "primary";
+      scoreBtn.textContent = `スコア +${REWARD_SCORE}`;
+      scoreBtn.addEventListener("click", () => applyReward({ type: "score", label: `スコア +${REWARD_SCORE}` }));
+      dom.rewardChoices.appendChild(scoreBtn);
+      showScreen("reward");
+    }
+
+    function applyReward(reward) {
+      const report = runState.battleReports[runState.battleReports.length - 1];
+      if (!report) return;
+      if (reward.type === "recover") {
+        applyPartRecovery(runState.playerCarryParts, reward.part);
+        report.reward = reward.label;
+      } else {
+        runState.rewardScoreTotal += REWARD_SCORE;
+        report.reward = reward.label;
+        report.rewardScore = REWARD_SCORE;
+      }
+      report.playerPartsAfterReward = cloneParts(runState.playerCarryParts);
+      runState.selectedRewards.push(reward);
+      runState.battleNo += 1;
+      startBattleInRun();
+    }
+
+    function continueAfterOutcome() {
+      if (!runState.active) { populateResult(lastResult); showScreen("result"); return; }
+      const report = runState.battleReports[runState.battleReports.length - 1];
+      if (!report) return finalizeRun();
+      if (report.outcome === "win" && report.battleNo < runState.maxBattles) showRewardSelection(report);
+      else finalizeRun();
+    }
+
+    function makeRunResult() {
+      const totalBattleScore = runState.battleReports.reduce((sum, r) => sum + r.battleScore, 0);
+      const totalScore = totalBattleScore + runState.rewardScoreTotal;
+      const last = runState.battleReports[runState.battleReports.length - 1];
+      const finalOutcome = runState.wins >= runState.maxBattles ? "complete" : (last?.outcome || "draw");
+      const resultLabel = finalOutcome === "complete" ? "5人抜き達成" : `${runState.wins}人抜きで${(RESULT_TEXT[last?.outcome] || RESULT_TEXT.draw).label}`;
+      return {
+        title: GAME.title,
+        playerName: last?.playerName || runState.settings?.playerName || "名無し",
+        wins: runState.wins,
+        maxBattles: runState.maxBattles,
+        reachedBattle: last?.battleNo || 1,
+        finalOutcome,
+        resultLabel,
+        totalScore,
+        totalBattleScore,
+        rewardScoreTotal: runState.rewardScoreTotal,
+        finalParts: cloneParts(runState.playerCarryParts || state.player?.parts),
+        reports: runState.battleReports.slice()
+      };
+    }
+
+    function finalizeRun() {
+      const runResult = makeRunResult();
+      runState.result = runResult;
+      runState.totalScore = runResult.totalScore;
+      runState.totalBattleScore = runResult.totalBattleScore;
+      lastResult = runResult;
+      populateResult(runResult);
+      sendScoreAfterResult(runResult);
+      showScreen("result");
     }
 
     function renderOutcomeFighter(fighter, fdom, card) {
@@ -2560,7 +2885,37 @@ hitWidth: 46,
       }, 650);
     }
 
+    function makeTotalShareText(runResult) {
+      return `${GAME.title} で遊んだ！\n\n結果：${runResult.resultLabel}\n総合スコア：${runResult.totalScore}点\n勝利数：${runResult.wins} / ${runResult.maxBattles}\n最終状態：${describeParts(runResult.finalParts)}\n\n${GAME.url}`;
+    }
+
+    function signed(value) { return value >= 0 ? `+${value}` : String(value); }
+
+    function makeDetailedReportText(runResult) {
+      const lines = [`【${GAME.title} 詳細レポート】`, "", `結果：${runResult.resultLabel}`, `総合スコア：${runResult.totalScore}点`, `勝利数：${runResult.wins} / ${runResult.maxBattles}`];
+      runResult.reports.forEach((r) => {
+        lines.push("", "--------------------", `第${r.battleNo}戦：${r.enemyName}`, `結果：${r.outcomeLabel}`, `戦闘スコア：${r.battleScore}点`, `経過：${r.elapsedSec}秒`, "", `攻撃：${r.attacks}回`, `うち頭攻撃：${r.headAttacks}回`, `ガード成功：${r.guardSuccess}回`, "", `敵破壊：${r.enemyPartsBroken}部位`, `敵頭破壊：${r.enemyHeadBroken}`, `壊れた敵頭への追加攻撃：${r.enemyBrokenPartHits}回`, "", `自分破壊：${r.playerPartsBroken}部位`, `自分頭破壊：${r.playerHeadBroken}`, `壊れた自分頭への追加被弾：${r.playerBrokenPartHits}回`, "", `頭攻撃相殺：${r.playerHeadAttackClashes + r.cpuHeadAttackClashes}回`, `💩攻撃を叩かれた回数：${r.playerPoopAttackClashes}回`, "", "スコア内訳：", `勝利ボーナス：${signed(r.scoreBreakdown.victory)}`, `攻撃回数：${signed(r.scoreBreakdown.attacks)}`, `ガード成功：${signed(r.scoreBreakdown.guardSuccess)}`, `敵通常部位破壊：${signed(r.scoreBreakdown.enemyBodyPartsBroken)}`, `敵頭破壊：${signed(r.scoreBreakdown.enemyHeadBroken)}`, `壊れた敵頭への追加攻撃：${signed(r.scoreBreakdown.enemyBrokenPartHits)}`, `自分部位破壊：${signed(r.scoreBreakdown.playerPartsBroken)}`, `壊れた自分頭への追加被弾：${signed(r.scoreBreakdown.playerBrokenPartHits)}`, `経過秒数：${signed(r.scoreBreakdown.elapsed)}`, "", `戦闘前の状態：${describeParts(r.playerPartsBefore)}`, `戦闘後の状態：${describeParts(r.playerPartsAfterBattle)}`, `報酬：${r.reward || "なし"}`, `報酬後の状態：${r.playerPartsAfterReward ? describeParts(r.playerPartsAfterReward) : "なし"}`);
+      });
+      lines.push("", "--------------------", `戦闘スコア合計：${runResult.totalBattleScore}点`, `報酬スコア加算：${runResult.rewardScoreTotal}点`, `総合スコア：${runResult.totalScore}点`);
+      return lines.join("\n");
+    }
+
     function populateResult(result) {
+      if (result && result.reports) {
+        dom.resultMain.textContent = GAME.title;
+        dom.resultSub.textContent = result.resultLabel;
+        dom.scoreBig.textContent = `総合スコア：${result.totalScore}点`;
+        dom.bdAttacks.textContent = String(result.reports.reduce((sum, r) => sum + r.attacks, 0));
+        dom.bdGuards.textContent = String(result.reports.reduce((sum, r) => sum + r.guardSuccess, 0));
+        dom.bdEnemyBroken.textContent = String(result.reports.reduce((sum, r) => sum + r.enemyPartsBroken, 0));
+        dom.bdPlayerBroken.textContent = String(result.reports.reduce((sum, r) => sum + r.playerPartsBroken, 0));
+        dom.bdElapsed.textContent = `${result.reports.reduce((sum, r) => sum + r.elapsedSec, 0)}秒`;
+        dom.detailReport.textContent = makeDetailedReportText(result);
+        dom.detailReportFallback.classList.add("hidden");
+        dom.sendStatus.textContent = "ランキング送信中...";
+        dom.sendStatus.className = "send-status";
+        return;
+      }
       const info = RESULT_TEXT[result.outcome] || RESULT_TEXT.draw;
       dom.resultMain.textContent = info.label;
       dom.resultSub.textContent = makeOutcomePhrase(result.outcome, result.cpuName, result.playerName);
@@ -2574,8 +2929,6 @@ hitWidth: 46,
       dom.sendStatus.className = "send-status";
     }
 
-    
-
     async function sendScoreAfterResult(result) {
       if (!supabaseConfigured()) {
         dom.sendStatus.textContent = "ランキング連携：Publishable key設定後に有効になります";
@@ -2584,7 +2937,7 @@ hitWidth: 46,
       }
 
       try {
-        await submitScore(result.playerName, result.score);
+        await submitScore(result.playerName || runState.settings?.playerName || "名無し", result.totalScore ?? result.score);
         dom.sendStatus.textContent = "ランキング登録しました";
         dom.sendStatus.className = "send-status ok";
       } catch (error) {
@@ -2876,12 +3229,12 @@ function getSupabasePublishableKey() {
         if (event.target === dom.rulesModal) closeRulesModal();
       });
       bindTapButton(dom.buttons.setupBack, () => showScreen("home"));
-      bindTapButton(dom.buttons.setupStart, () => setupBattle(collectSettings()));
+      bindTapButton(dom.buttons.setupStart, () => startRun());
       bindTapButton(dom.buttons.retire, retireBattle);
       bindTapButton(dom.buttons.homeShare, () => shareText(`${GAME.title}　で遊ぼう！\n${GAME.url}`));
       bindTapButton(dom.buttons.homeLab, () => { location.href = GAME.labUrl; });
       bindTapButton(dom.buttons.outcomeResult, () => {
-        if (lastResult) showScreen("result");
+        continueAfterOutcome();
       });
       bindTapButton(dom.buttons.resultLab, () => {
         state.running = false;
@@ -2897,11 +3250,21 @@ function getSupabasePublishableKey() {
         showScreen("home");
       });
       bindTapButton(dom.buttons.retry, () => {
-        if (lastSettings) setupBattle(Object.assign({}, lastSettings));
-        else showSetup();
+        showSetup();
       });
       bindTapButton(dom.buttons.resultShare, () => {
-        if (lastResult) shareText(makeShareText(lastResult));
+        if (runState.result) shareText(makeTotalShareText(runState.result));
+      });
+      bindTapButton(dom.buttons.copyDetail, async () => {
+        const text = runState.result ? makeDetailedReportText(runState.result) : "";
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast("詳細レポートをコピーしました");
+        } catch (error) {
+          dom.detailReportFallback.value = text;
+          dom.detailReportFallback.classList.remove("hidden");
+          showToast("コピーできませんでした。下のテキストを手動でコピーしてください。");
+        }
       });
     }
 
