@@ -2366,7 +2366,19 @@ hitWidth: 46,
         }
       }
 
-      resolveProjectileCollisions();
+      try {
+        resolveProjectileCollisions(timestamp);
+      } catch (error) {
+        console.warn("projectile collision failed", error);
+        showProjectileRecoveryToast();
+        state.projectiles.forEach((projectile) => safeRemoveProjectile(projectile));
+        state.projectiles = [];
+        if (dom.stage) {
+          dom.stage.querySelectorAll(".projectile").forEach((el) => {
+            try { el.remove(); } catch (removeError) {}
+          });
+        }
+      }
 
       for (const p of state.projectiles) {
         if (p.removed || p.resolved) continue;
@@ -2408,25 +2420,64 @@ hitWidth: 46,
       }
     }
 
+    function safeRemoveProjectile(p) {
+      if (!p) return;
+      p.removed = true;
+      p.resolved = true;
+      if (p.el) {
+        try { p.el.remove(); } catch (error) {}
+        p.el = null;
+      }
+    }
+
+    function showProjectileRecoveryToast() {
+      try { showToast("攻撃相殺処理を安全復帰しました"); } catch (error) {}
+    }
+
+    function safePartY(fighter, part, fallbackY) {
+      try {
+        const y = yForPart(fighter, part);
+        return Number.isFinite(y) ? y : fallbackY;
+      } catch (error) {
+        return fallbackY;
+      }
+    }
+
+    function safeCreateEffect(text, x, y) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      createEffect(text, x, y);
+    }
+
     function applyHeadClashPenalty(headProjectile, timestamp, damageOwnerId) {
+      if (!headProjectile || !state.stats) return;
       const headOwner = headProjectile.owner === "player" ? state.player : state.cpu;
+      if (!headOwner || !headOwner.parts || !headOwner.parts.head) return;
+      const effectX = Number.isFinite(headOwner.x) ? headOwner.x : (Number.isFinite(headProjectile.currentX) ? headProjectile.currentX : headProjectile.startX);
+      const effectY = safePartY(headOwner, "head", Number.isFinite(headProjectile.y) ? headProjectile.y : 0);
+
       if (headProjectile.poop) {
         const alreadyInvulnerable = headOwner.hitInvulnerableUntil && headOwner.hitInvulnerableUntil > timestamp;
-        flashFighter(headOwner.id);
-        if (!alreadyInvulnerable) {
-          if (headProjectile.owner === "player") {
-            state.stats.playerBrokenPartHits += 1;
-            state.stats.playerPoopAttackClashes += 1;
-            createEffect("-300", headOwner.x, yForPart(headOwner, "head"));
-          } else {
-            state.stats.enemyBrokenPartHits += 1;
-            state.stats.cpuPoopAttackClashes += 1;
-            createEffect("+300", headOwner.x, yForPart(headOwner, "head"));
-          }
-        } else {
-          createEffect("…", headOwner.x, yForPart(headOwner, "head"));
+        if (alreadyInvulnerable) {
+          safeCreateEffect("…", effectX, effectY);
+          return;
         }
+
+        if (headOwner.id) flashFighter(headOwner.id);
         headOwner.hitInvulnerableUntil = timestamp + LIMITS.hitStunMs;
+        if (headProjectile.owner === "player") {
+          state.stats.playerBrokenPartHits += 1;
+          state.stats.playerPoopAttackClashes += 1;
+          safeCreateEffect("-300", effectX, effectY);
+        } else {
+          state.stats.enemyBrokenPartHits += 1;
+          state.stats.cpuPoopAttackClashes += 1;
+          safeCreateEffect("+300", effectX, effectY);
+        }
+        return;
+      }
+
+      if (headOwner.hitInvulnerableUntil && headOwner.hitInvulnerableUntil > timestamp) {
+        safeCreateEffect("…", effectX, effectY);
         return;
       }
 
@@ -2436,49 +2487,68 @@ hitWidth: 46,
     }
 
     function removeClashedProjectiles(a, b) {
-      a.removed = true;
-      b.removed = true;
-      a.resolved = true;
-      b.resolved = true;
-      if (a.el) a.el.remove();
-      if (b.el) b.el.remove();
+      safeRemoveProjectile(a);
+      safeRemoveProjectile(b);
+    }
+
+    function projectileX(projectile) {
+      if (!projectile) return 0;
+      if (Number.isFinite(projectile.currentX)) return projectile.currentX;
+      if (Number.isFinite(projectile.startX)) return projectile.startX;
+      return 0;
+    }
+
+    function projectileY(projectile) {
+      return projectile && Number.isFinite(projectile.y) ? projectile.y : 0;
     }
 
     function resolveHeadFistCollision(headProjectile, fistProjectile, timestamp) {
-      createEffect("💥", ((headProjectile.currentX || headProjectile.startX) + (fistProjectile.currentX || fistProjectile.startX)) / 2, headProjectile.y);
+      if (!headProjectile || !fistProjectile || !state.player || !state.cpu || !state.stats) return;
+      if (headProjectile.removed || headProjectile.resolved || fistProjectile.removed || fistProjectile.resolved) return;
+      safeCreateEffect("💥", (projectileX(headProjectile) + projectileX(fistProjectile)) / 2, projectileY(headProjectile));
       removeClashedProjectiles(headProjectile, fistProjectile);
       applyHeadClashPenalty(headProjectile, timestamp, fistProjectile.owner);
     }
 
     function resolveHeadHeadCollision(a, b, timestamp) {
-      createEffect("💥", ((a.currentX || a.startX) + (b.currentX || b.startX)) / 2, a.y);
+      if (!a || !b || !state.player || !state.cpu || !state.stats) return;
+      if (a.removed || a.resolved || b.removed || b.resolved) return;
+      safeCreateEffect("💥", (projectileX(a) + projectileX(b)) / 2, projectileY(a));
       removeClashedProjectiles(a, b);
       applyHeadClashPenalty(a, timestamp, b.owner);
       applyHeadClashPenalty(b, timestamp, a.owner);
     }
 
-    function resolveProjectileCollisions() {
+    function resolveProjectileCollisions(timestamp) {
+      if (!state.projectiles) return;
       for (let i = 0; i < state.projectiles.length; i++) {
         const a = state.projectiles[i];
-        if (a.removed || a.resolved) continue;
+        if (!a || a.removed || a.resolved) continue;
         for (let j = i + 1; j < state.projectiles.length; j++) {
           if (a.removed || a.resolved) break;
           const b = state.projectiles[j];
-          if (b.removed || b.resolved) continue;
+          if (!b || b.removed || b.resolved) continue;
           if (a.owner === b.owner) continue;
-          const ax = a.currentX || a.startX;
-          const bx = b.currentX || b.startX;
+          const ax = projectileX(a);
+          const bx = projectileX(b);
           if (Math.abs(ax - bx) > 28) continue;
 
           if (a.type === "fist" && b.type === "fist") {
             if (a.height !== b.height) continue;
-            createEffect("💥", (ax + bx) / 2, a.y);
+            safeCreateEffect("💥", (ax + bx) / 2, projectileY(a));
             removeClashedProjectiles(a, b);
             break;
           }
 
           if (a.type === "head" && b.type === "head") {
-            resolveHeadHeadCollision(a, b, timestamp);
+            try {
+              resolveHeadHeadCollision(a, b, timestamp);
+            } catch (error) {
+              console.warn("head/head collision failed", error);
+              showProjectileRecoveryToast();
+              safeRemoveProjectile(a);
+              safeRemoveProjectile(b);
+            }
             break;
           }
 
@@ -2486,7 +2556,14 @@ hitWidth: 46,
           const fist = head === a ? b : (head === b ? a : null);
           if (!head || !fist) continue;
           if (!(head.height === fist.height || (head.height === "mid" && fist.height === "mid"))) continue;
-          resolveHeadFistCollision(head, fist, timestamp);
+          try {
+            resolveHeadFistCollision(head, fist, timestamp);
+          } catch (error) {
+            console.warn("head/fist collision failed", error);
+            showProjectileRecoveryToast();
+            safeRemoveProjectile(head);
+            safeRemoveProjectile(fist);
+          }
           break;
         }
       }
