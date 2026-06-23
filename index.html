@@ -1111,16 +1111,17 @@
           <li>勝つと次の相手へ進みます</li>
           <li>最大5人抜きです</li>
           <li>壊れた頭・腕・足は次の戦闘へ持ち越します</li>
-          <li>勝利後は、壊れた部位を1回復するか、スコア+1000を選べます</li>
+          <li>勝利後は、壊れた部位を応急処置（耐久1で復帰）するか、スコア+1000を選べます</li>
           <li>第5戦に勝つと5人抜き達成です</li>
           <li>攻撃🤜とガード💪はスタミナを消費する</li>
+          <li>ガードは発動時にスタミナを0.5使い、成功時の追加消費はありません</li>
           <li>スタミナは一定時間で回復</li>
           <li>🤜には射程距離がある</li>
           <li>頭は3回、💪🦵は2回攻撃で壊れる</li>
           <li>ガードには💪が必要</li>
           <li>ジャンプには両方の🦵が必要</li>
           <li>前面の💪が壊れると、残った💪を前に出して戦えます</li>
-          <li>両方の🦵が壊れても、半分の速度で移動できます</li>
+          <li>片足でも🦵が壊れると移動速度が半分になり、両方の🦵が壊れると0.3倍になります</li>
           <li>両方の💪が壊れると、頭または💩で中段攻撃できます</li>
           <li>頭攻撃は🤜より短く、スタミナを1.5使います</li>
           <li>頭攻撃は🤜と相殺します</li>
@@ -1868,7 +1869,7 @@ hitWidth: 46,
           state.cpuBrain.crouchUntil = timestamp + 450 + Math.random() * 380;
         }
 
-        if (!isJumping(cpu) && canJump(cpu) && Math.random() < 0.07) {
+        if (!isJumping(cpu) && canJump(cpu) && hasAnyArm(cpu) && Math.random() < 0.07) {
           jump(cpu, timestamp);
         }
       }
@@ -1880,7 +1881,8 @@ hitWidth: 46,
         const dist = Math.abs(player.x - cpu.x);
         const range = attackRangeFor(cpu);
         if (dist <= range + 12 && cpu.stamina >= attackStaminaCostFor(cpu) && Math.random() < 0.42) {
-          if (!isJumping(cpu) && Math.random() < 0.22 && canJump(cpu)) {
+          const willHeadAttack = attackKindFor(cpu) === "head";
+          if (!isJumping(cpu) && Math.random() < 0.22 && canJump(cpu) && !willHeadAttack) {
             jump(cpu, timestamp);
           }
           doAttack(cpu, timestamp);
@@ -1888,13 +1890,19 @@ hitWidth: 46,
       }
     }
 
+    function isGuarding(fighter, timestamp = nowMs()) {
+      return fighter && fighter.guardUntil > timestamp;
+    }
+
     function canMove(fighter) {
+      if (isGuarding(fighter)) return false;
       return true;
     }
 
     function movementMultiplier(fighter) {
       const brokenCount = Number(fighter.parts.leftFoot.broken) + Number(fighter.parts.rightFoot.broken);
-      if (brokenCount >= 1) return 0.5;
+      if (brokenCount >= 2) return 0.3;
+      if (brokenCount === 1) return 0.5;
       return 1;
     }
 
@@ -1970,6 +1978,7 @@ hitWidth: 46,
     }
 
     function jump(fighter, timestamp) {
+      if (isGuarding(fighter, timestamp)) return false;
       if (!canJump(fighter) || isJumping(fighter)) return false;
       fighter.crouch = false;
       fighter.jumpUntil = timestamp + LIMITS.jumpMs;
@@ -1986,6 +1995,7 @@ hitWidth: 46,
     function canHeadAttack(fighter, timestamp) { return !hasAnyArm(fighter) && !isJumping(fighter) && fighter.stamina >= 1.5 && timestamp - fighter.lastAttackAt >= LIMITS.attackCooldownMs; }
 
     function canAttack(fighter, timestamp) {
+      if (isGuarding(fighter, timestamp)) return false;
       if (attackKindFor(fighter) === "head" && !canHeadAttack(fighter, timestamp)) return false;
       if (fighter.stamina < attackStaminaCostFor(fighter)) return false;
       if (timestamp - fighter.lastAttackAt < LIMITS.attackCooldownMs) return false;
@@ -2079,8 +2089,12 @@ hitWidth: 46,
         }
 
         if (cpu.stamina < 0.5 || !hasAnyArm(cpu)) return;
+        const guardNow = nowMs();
         cpu.crouch = projectile.height === "low";
-        startGuard(cpu, nowMs());
+        if (cpu.crouch) {
+          state.cpuBrain.crouchUntil = guardNow + LIMITS.guardMs;
+        }
+        startGuard(cpu, guardNow);
       }, delay);
     }
 
@@ -2158,30 +2172,53 @@ hitWidth: 46,
       }
     }
 
-    function resolveHeadFistCollision(headProjectile, fistProjectile, timestamp) {
+    function applyHeadClashPenalty(headProjectile, timestamp, damageOwnerId) {
       const headOwner = headProjectile.owner === "player" ? state.player : state.cpu;
-      createEffect("💥", ((headProjectile.currentX || headProjectile.startX) + (fistProjectile.currentX || fistProjectile.startX)) / 2, headProjectile.y);
-      headProjectile.removed = true;
-      fistProjectile.removed = true;
-      headProjectile.resolved = true;
-      fistProjectile.resolved = true;
-      if (headProjectile.el) headProjectile.el.remove();
-      if (fistProjectile.el) fistProjectile.el.remove();
       if (headProjectile.poop) {
-        if (headProjectile.owner === "player") {
-          state.stats.playerBrokenPartHits += 1;
-          state.stats.playerPoopAttackClashes += 1;
-          createEffect("-300", headOwner.x, yForPart(headOwner, "head"));
+        const alreadyInvulnerable = headOwner.hitInvulnerableUntil && headOwner.hitInvulnerableUntil > timestamp;
+        flashFighter(headOwner.id);
+        if (!alreadyInvulnerable) {
+          if (headProjectile.owner === "player") {
+            state.stats.playerBrokenPartHits += 1;
+            state.stats.playerPoopAttackClashes += 1;
+            createEffect("-300", headOwner.x, yForPart(headOwner, "head"));
+          } else {
+            state.stats.enemyBrokenPartHits += 1;
+            state.stats.cpuPoopAttackClashes += 1;
+            createEffect("+300", headOwner.x, yForPart(headOwner, "head"));
+          }
         } else {
-          state.stats.enemyBrokenPartHits += 1;
-          state.stats.cpuPoopAttackClashes += 1;
-          createEffect("+300", headOwner.x, yForPart(headOwner, "head"));
+          createEffect("…", headOwner.x, yForPart(headOwner, "head"));
         }
-      } else {
-        if (headProjectile.owner === "player") state.stats.playerHeadAttackClashes += 1;
-        else state.stats.cpuHeadAttackClashes += 1;
-        damagePart(headOwner, "head", fistProjectile.owner);
+        headOwner.hitInvulnerableUntil = timestamp + LIMITS.hitStunMs;
+        return;
       }
+
+      if (headProjectile.owner === "player") state.stats.playerHeadAttackClashes += 1;
+      else state.stats.cpuHeadAttackClashes += 1;
+      damagePart(headOwner, "head", damageOwnerId);
+    }
+
+    function removeClashedProjectiles(a, b) {
+      a.removed = true;
+      b.removed = true;
+      a.resolved = true;
+      b.resolved = true;
+      if (a.el) a.el.remove();
+      if (b.el) b.el.remove();
+    }
+
+    function resolveHeadFistCollision(headProjectile, fistProjectile, timestamp) {
+      createEffect("💥", ((headProjectile.currentX || headProjectile.startX) + (fistProjectile.currentX || fistProjectile.startX)) / 2, headProjectile.y);
+      removeClashedProjectiles(headProjectile, fistProjectile);
+      applyHeadClashPenalty(headProjectile, timestamp, fistProjectile.owner);
+    }
+
+    function resolveHeadHeadCollision(a, b, timestamp) {
+      createEffect("💥", ((a.currentX || a.startX) + (b.currentX || b.startX)) / 2, a.y);
+      removeClashedProjectiles(a, b);
+      applyHeadClashPenalty(a, timestamp, b.owner);
+      applyHeadClashPenalty(b, timestamp, a.owner);
     }
 
     function resolveProjectileCollisions() {
@@ -2200,9 +2237,12 @@ hitWidth: 46,
           if (a.type === "fist" && b.type === "fist") {
             if (a.height !== b.height) continue;
             createEffect("💥", (ax + bx) / 2, a.y);
-            a.removed = true; b.removed = true; a.resolved = true; b.resolved = true;
-            if (a.el) a.el.remove();
-            if (b.el) b.el.remove();
+            removeClashedProjectiles(a, b);
+            break;
+          }
+
+          if (a.type === "head" && b.type === "head") {
+            resolveHeadHeadCollision(a, b, timestamp);
             break;
           }
 
@@ -2210,7 +2250,7 @@ hitWidth: 46,
           const fist = head === a ? b : (head === b ? a : null);
           if (!head || !fist) continue;
           if (!(head.height === fist.height || (head.height === "mid" && fist.height === "mid"))) continue;
-          resolveHeadFistCollision(head, fist, nowMs());
+          resolveHeadFistCollision(head, fist, timestamp);
           break;
         }
       }
@@ -2308,7 +2348,6 @@ hitWidth: 46,
     }
 
     function consumeGuardSuccess(target) {
-      target.stamina = Math.max(0, target.stamina - 0.5);
       if (target.id === "player") {
         state.stats.guardSuccess += 1;
       }
@@ -2758,8 +2797,8 @@ hitWidth: 46,
       getBrokenRecoverableParts(runState.playerCarryParts).forEach((part) => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.textContent = `${labels[part]}を1回復`;
-        btn.addEventListener("click", () => applyReward({ type: "recover", part, label: `${labels[part]}を1回復` }));
+        btn.textContent = `${labels[part]}を応急処置（耐久1で復帰）`;
+        btn.addEventListener("click", () => applyReward({ type: "recover", part, label: `${labels[part]}を応急処置（耐久1で復帰）` }));
         dom.rewardChoices.appendChild(btn);
       });
       const scoreBtn = document.createElement("button");
