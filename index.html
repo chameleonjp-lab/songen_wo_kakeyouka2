@@ -1783,7 +1783,9 @@ hitWidth: 46,
       totalBattleScore: 0,
       settings: null,
       result: null,
-      currentCpuProfile: null
+      currentCpuProfile: null,
+      rewardLocked: false,
+      finalized: false
     };
 
     const state = {
@@ -1936,6 +1938,8 @@ hitWidth: 46,
       runState.settings = settings;
       runState.result = null;
       runState.currentCpuProfile = null;
+      runState.rewardLocked = false;
+      runState.finalized = false;
       startBattleInRun();
     }
 
@@ -2905,6 +2909,10 @@ hitWidth: 46,
       const profile = runState.currentCpuProfile;
       if (!profile || !cpu || cpu.id !== "cpu") return;
       if (Math.random() > profile.counterAfterGuardChance) return;
+
+      const guardRemaining = Math.max(0, (cpu.guardUntil || timestamp) - timestamp);
+      const delay = Math.max(80 + Math.random() * 100, guardRemaining + 40);
+
       setTimeout(() => {
         try {
           if (!state.running || state.ended) return;
@@ -2914,7 +2922,7 @@ hitWidth: 46,
         } catch (error) {
           console.warn("cpu counter failed", error);
         }
-      }, 80 + Math.random() * 100);
+      }, delay);
     }
 
     function consumeGuardSuccess(target) {
@@ -3369,6 +3377,7 @@ hitWidth: 46,
     }
 
     function showRewardSelection(report) {
+      runState.rewardLocked = false;
       dom.rewardTitle.textContent = `第${report.battleNo}戦 勝利`;
       const currentTotal = runState.battleReports.reduce((sum, r) => sum + r.battleScore, 0) + runState.rewardScoreTotal;
       dom.rewardInfo.textContent = `戦闘スコア：${report.battleScore}点
@@ -3392,6 +3401,13 @@ hitWidth: 46,
     }
 
     function applyReward(reward) {
+      if (runState.rewardLocked) return;
+      runState.rewardLocked = true;
+      dom.rewardChoices.querySelectorAll("button").forEach((button) => {
+        button.disabled = true;
+        button.classList.add("disabled");
+      });
+
       const report = runState.battleReports[runState.battleReports.length - 1];
       if (!report) return;
       if (reward.type === "heal") {
@@ -3442,6 +3458,9 @@ hitWidth: 46,
     }
 
     function finalizeRun() {
+      if (runState.finalized) return;
+      runState.finalized = true;
+
       const runResult = makeRunResult();
       runState.result = runResult;
       runState.totalScore = runResult.totalScore;
@@ -3479,6 +3498,22 @@ hitWidth: 46,
       });
     }
 
+    function updateOutcomeButtonLabel(result) {
+      if (!dom.buttons.outcomeResult) return;
+
+      if (runState.active && result.outcome === "win" && runState.battleNo < runState.maxBattles) {
+        dom.buttons.outcomeResult.textContent = "報酬を選ぶ";
+        return;
+      }
+
+      if (runState.active) {
+        dom.buttons.outcomeResult.textContent = "総合結果を見る";
+        return;
+      }
+
+      dom.buttons.outcomeResult.textContent = "結果を見る";
+    }
+
     function renderOutcome(result) {
       const info = RESULT_TEXT[result.outcome] || RESULT_TEXT.draw;
       dom.outcomeStatus.textContent = info.label;
@@ -3502,6 +3537,7 @@ hitWidth: 46,
 
     function showOutcomeAfterFinish(result) {
       renderOutcome(result);
+      updateOutcomeButtonLabel(result);
       dom.countdown.textContent = "終了";
       dom.countdown.classList.add("active");
       setTimeout(() => {
