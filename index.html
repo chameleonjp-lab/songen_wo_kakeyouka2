@@ -1011,10 +1011,15 @@
     }
 
     .score-big {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       text-align: center;
-      font-size: clamp(32px, 10vw, 58px);
       word-break: keep-all;
       overflow-wrap: normal;
+      max-width: 100%;
       font-weight: 900;
       letter-spacing: 0.01em;
       background: linear-gradient(180deg, #fff7df, #ffd36b 55%, #e0a236);
@@ -1025,9 +1030,19 @@
       margin: 8px 0 18px;
     }
 
-    .score-big .score-label,
-    .score-big .score-number {
+    .score-big .score-label {
+      display: block;
       white-space: nowrap;
+      font-size: clamp(24px, 7vw, 36px);
+      line-height: 1.1;
+    }
+
+    .score-big .score-number {
+      display: block;
+      white-space: nowrap;
+      font-size: clamp(42px, 13vw, 64px);
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
     }
 
     .ranking-panel {
@@ -3463,7 +3478,7 @@ hitWidth: 46,
       if (result && result.reports) {
         dom.resultMain.textContent = GAME.title;
         dom.resultSub.textContent = result.resultLabel;
-        dom.scoreBig.innerHTML = `<span class="score-label">総合スコア</span><span class="score-number">：${result.totalScore}点</span>`;
+        dom.scoreBig.innerHTML = `<span class="score-label">総合スコア</span><span class="score-number">${result.totalScore}点</span>`;
         dom.bdAttacks.textContent = String(result.reports.reduce((sum, r) => sum + r.attacks, 0));
         dom.bdGuards.textContent = String(result.reports.reduce((sum, r) => sum + r.guardSuccess, 0));
         dom.bdEnemyBroken.textContent = String(result.reports.reduce((sum, r) => sum + r.enemyPartsBroken, 0));
@@ -3479,7 +3494,7 @@ hitWidth: 46,
       const info = RESULT_TEXT[result.outcome] || RESULT_TEXT.draw;
       dom.resultMain.textContent = info.label;
       dom.resultSub.textContent = makeOutcomePhrase(result.outcome, result.cpuName, result.playerName);
-      dom.scoreBig.textContent = `${result.score}点`;
+      dom.scoreBig.innerHTML = `<span class="score-label">スコア</span><span class="score-number">${result.score}点</span>`;
       dom.bdAttacks.textContent = String(result.attacks);
       dom.bdGuards.textContent = String(result.guardSuccess);
       dom.bdEnemyBroken.textContent = String(result.enemyPartsBroken);
