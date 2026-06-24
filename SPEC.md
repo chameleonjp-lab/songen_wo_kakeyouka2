@@ -564,13 +564,15 @@ head vs head: 相殺する
 ```text
 攻撃者が違う
 両方とも removed / resolved ではない
-X座標差が28px以内
+X座標差が28px以内、または前フレーム位置から現在位置までの移動区間が28pxのpadding込みで交差・重複する
 fist vs fist は height が同じ
 head vs fist は head が mid、fist も mid
 head vs head は両方とも mid
 ```
 
 相殺後は両方の攻撃を消します。同じフレームで同じ攻撃が複数回相殺されないよう、相殺後はその組の処理を抜けます。
+
+攻撃相殺は、現在座標だけでなく、前フレーム位置から現在位置までの移動区間も見て判定します。これにより、高速移動やフレーム落ちで攻撃同士がすれ違った場合でも、同じ高さの攻撃であれば相殺されます。fist vs fist は高さが同じ場合のみ相殺します。
 
 ### 16.3 head vs fist / head vs head の追加処理
 

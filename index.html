@@ -2688,6 +2688,57 @@ hitWidth: 46,
       return 0;
     }
 
+    function projectilePreviousX(projectile) {
+      if (!projectile) return 0;
+      if (Number.isFinite(projectile.previousX)) return projectile.previousX;
+      if (Number.isFinite(projectile.startX)) return projectile.startX;
+      return projectileX(projectile);
+    }
+
+    function projectilesPassedEachOther(a, b) {
+      const aPrev = projectilePreviousX(a);
+      const aCurr = projectileX(a);
+      const bPrev = projectilePreviousX(b);
+      const bCurr = projectileX(b);
+      const before = aPrev - bPrev;
+      const after = aCurr - bCurr;
+      return before === 0 || after === 0 || before * after < 0;
+    }
+
+    function projectileSweptRangesOverlap(a, b, padding = 28) {
+      const aPrev = projectilePreviousX(a);
+      const aCurr = projectileX(a);
+      const bPrev = projectilePreviousX(b);
+      const bCurr = projectileX(b);
+      const aMin = Math.min(aPrev, aCurr) - padding;
+      const aMax = Math.max(aPrev, aCurr) + padding;
+      const bMin = Math.min(bPrev, bCurr) - padding;
+      const bMax = Math.max(bPrev, bCurr) + padding;
+      return aMax >= bMin && bMax >= aMin;
+    }
+
+    function projectileClashCandidate(a, b, padding = 28) {
+      const ax = projectileX(a);
+      const bx = projectileX(b);
+      if (Math.abs(ax - bx) <= padding) return true;
+      return projectilesPassedEachOther(a, b) && projectileSweptRangesOverlap(a, b, padding);
+    }
+
+    function projectileClashX(a, b) {
+      const aPrev = projectilePreviousX(a);
+      const aCurr = projectileX(a);
+      const bPrev = projectilePreviousX(b);
+      const bCurr = projectileX(b);
+      const aDelta = aCurr - aPrev;
+      const bDelta = bCurr - bPrev;
+      const denom = aDelta - bDelta;
+      if (Math.abs(denom) < 0.0001) {
+        return (projectileX(a) + projectileX(b)) / 2;
+      }
+      const t = Math.max(0, Math.min(1, (bPrev - aPrev) / denom));
+      return aPrev + aDelta * t;
+    }
+
     function projectileY(projectile) {
       return projectile && Number.isFinite(projectile.y) ? projectile.y : 0;
     }
@@ -2695,7 +2746,7 @@ hitWidth: 46,
     function resolveHeadFistCollision(headProjectile, fistProjectile, timestamp) {
       if (!headProjectile || !fistProjectile || !state.player || !state.cpu || !state.stats) return;
       if (headProjectile.removed || headProjectile.resolved || fistProjectile.removed || fistProjectile.resolved) return;
-      safeCreateEffect("💥", (projectileX(headProjectile) + projectileX(fistProjectile)) / 2, projectileY(headProjectile));
+      safeCreateEffect("💥", projectileClashX(headProjectile, fistProjectile), projectileY(headProjectile));
       removeClashedProjectiles(headProjectile, fistProjectile);
       applyHeadClashPenalty(headProjectile, timestamp, fistProjectile.owner);
     }
@@ -2703,7 +2754,7 @@ hitWidth: 46,
     function resolveHeadHeadCollision(a, b, timestamp) {
       if (!a || !b || !state.player || !state.cpu || !state.stats) return;
       if (a.removed || a.resolved || b.removed || b.resolved) return;
-      safeCreateEffect("💥", (projectileX(a) + projectileX(b)) / 2, projectileY(a));
+      safeCreateEffect("💥", projectileClashX(a, b), projectileY(a));
       removeClashedProjectiles(a, b);
       applyHeadClashPenalty(a, timestamp, b.owner);
       applyHeadClashPenalty(b, timestamp, a.owner);
@@ -2719,18 +2770,18 @@ hitWidth: 46,
           const b = state.projectiles[j];
           if (!b || b.removed || b.resolved) continue;
           if (a.owner === b.owner) continue;
-          const ax = projectileX(a);
-          const bx = projectileX(b);
-          if (Math.abs(ax - bx) > 28) continue;
+          if (!projectileClashCandidate(a, b, 28)) continue;
+          const clashX = projectileClashX(a, b);
 
           if (a.type === "fist" && b.type === "fist") {
             if (a.height !== b.height) continue;
-            safeCreateEffect("💥", (ax + bx) / 2, projectileY(a));
+            safeCreateEffect("💥", clashX, projectileY(a));
             removeClashedProjectiles(a, b);
             break;
           }
 
           if (a.type === "head" && b.type === "head") {
+            if (a.height !== "mid" || b.height !== "mid") continue;
             try {
               resolveHeadHeadCollision(a, b, timestamp);
             } catch (error) {
@@ -2745,7 +2796,7 @@ hitWidth: 46,
           const head = a.type === "head" && b.type === "fist" ? a : (b.type === "head" && a.type === "fist" ? b : null);
           const fist = head === a ? b : (head === b ? a : null);
           if (!head || !fist) continue;
-          if (!(head.height === fist.height || (head.height === "mid" && fist.height === "mid"))) continue;
+          if (head.height !== "mid" || fist.height !== "mid") continue;
           try {
             resolveHeadFistCollision(head, fist, timestamp);
           } catch (error) {
