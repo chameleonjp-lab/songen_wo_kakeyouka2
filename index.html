@@ -5,24 +5,40 @@
   - five-battle run mode
   - player parts carry over between battles
   - CPU parts reset every battle
-  - after each win from battle 1 to 4, choose recovery +1 for a broken part or score +1000
+  - battle 1 to 4 win reward has three types:
+    - injured part +1 heal
+    - broken part revive with 1 durability
+    - score +1000
   - battle 5 ends directly at total result
   - total score is sum of battle scores plus reward score
   - ranking submits total score only once at final result
+  - final result shows total share, detailed report copy, home button, lab button, and score ranking top 10
+  - CPU has five battle profiles
+  - CPU profile is selected per battle
+  - battle number applies CPU difficulty multiplier
+  - final battle uses stronger guard-counter profile
+  - CPU adjusts attack bias based on player damaged parts and low stamina
   - head durability: 3 hits
   - arm and foot durability: 2 hits
   - head broken emoji: 💩
   - if the front arm is broken and the back arm remains, the back arm moves to the front
   - remaining front-effective arm can guard and punch
-  - if both legs are broken, fighter can still move at half speed
+  - one broken leg: movement speed 0.5
+  - both legs broken: movement speed 0.3
   - jump requires both legs
+  - jump duration is 560ms
   - crouch is allowed even with broken legs
   - if both arms are broken, attack becomes mid head / 💩 attack
-  - head attack costs 1.5 stamina
-  - head attack range is fistRange - hitWidth
-  - head attack can clash with fist attack
-  - if 💩 attack is hit by fist, count it as broken-head extra hit
-  - final result has total share and detailed report copy
+  - fist attack costs 1 stamina
+  - head / 💩 attack costs 1.5 stamina
+  - guard costs 0.5 stamina on activation
+  - guard success has no extra stamina cost
+  - poop-only mode gives 1.5x stamina regeneration
+  - fist vs fist clashes
+  - head vs fist clashes
+  - head vs head clashes
+  - if 💩 attack is hit in a clash, count it as broken-head extra hit
+  - projectile clash handling is defensive and must not stop the game loop
 -->
 
 <!-- latest: songen_wo_kakeyouka_index_fixed_v20260606_40_remove_dangling_async / created 2026-06-06 -->
