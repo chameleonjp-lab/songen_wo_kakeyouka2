@@ -29,7 +29,7 @@ const GAME = Object.freeze({
   url: "https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/",
   labUrl: "https://chameleonjp.codeberg.page/chameleonjp_lab/",
   durationSec: 180,
-  version: "songen_wo_kakeyouka2_v1_20260623_01_five_battles_head_attack"
+  version: "songen_wo_kakeyouka2_v1_20260626_01_pending_score_retry"
 });
 ```
 
