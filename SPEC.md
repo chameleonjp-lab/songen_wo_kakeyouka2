@@ -822,6 +822,19 @@ p_client_version: GAME.version
 
 結果画面では、Supabaseからスコアランキング上位10件を取得して表示します。表示見出しは「スコアランキング TOP10」です。表示項目は順位、名前、スコアです。RPCは `get_best_score_ranking` を使います。`p_game_slug` は `GAME.slug`、まず `p_limit: 10` 付きで取得を試します。`p_limit` が使えない場合は `p_game_slug` のみで再試行し、フロント側で10件に切ります。取得失敗時は「ランキングを読み込めませんでした」と表示し、ゲーム本体は止めません。
 
+
+### 22.1 ランキング保存強化仕様
+
+ランキング送信は、結果確定時にまず pending queue へ保存してから送信します。pending queue は `localStorage` の `songen_wo_kakeyouka2_pending_scores_v1` を使い、保存待ちの `displayName`、`gameSlug`、`score`、`clientVersion`、`createdAt`、`attempts`、`lastError` を保持します。`localStorage` の読み書きは失敗してもゲーム本体を止めません。
+
+送信成功した記録だけ pending queue から削除します。送信失敗時は queue に残し、`attempts` と `lastError` を更新します。次回表示、ページ初期化、オンライン復帰、フォーカス復帰、`visibilitychange` で visible に戻った時に再送します。結果画面表示時も保存待ちがあれば再送を試みます。
+
+結果画面には pending queue がある時だけ「ランキング再送」ボタンを表示し、押下時に保存待ちスコアの再送を試みます。また、古いHTMLキャッシュの問い合わせ対策として結果画面下部に client version（`GAME.version`）を表示します。
+
+ランキング登録失敗とランキングTOP10取得失敗は別扱いにします。登録成功後にランキングTOP10取得が失敗しても、送信ステータスの「ランキング登録しました」は消しません。ランキングTOP10取得失敗時はランキング表示欄だけに「ランキングを読み込めませんでした」と表示します。
+
+この設計により、iPhone Safariでページ離脱・共有操作・戻る・閉じる・別アプリ移動・通信不安定が起きても、可能な範囲で結果確定済みの記録を失わず再送できるようにします。
+
 ---
 
 ## 23. 固定解釈

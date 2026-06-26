@@ -1083,6 +1083,23 @@
       white-space: nowrap;
     }
 
+    .resend-score-btn {
+      width: auto;
+      min-height: 36px;
+      margin: 6px auto 10px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    .client-version {
+      margin-top: 12px;
+      font-size: 11px;
+      opacity: 0.65;
+      text-align: center;
+      word-break: break-all;
+    }
+
     .breakdown {
       display: grid;
       gap: 2px;
@@ -1588,7 +1605,8 @@
         </div>
         <div id="detailReport" class="detail-report"></div>
         <textarea id="detailReportFallback" class="detail-report-fallback hidden" readonly></textarea>
-        <div id="sendStatus" class="send-status">ランキング送信中...</div>
+        <div id="sendStatus" class="send-status">ランキング保存中…</div>
+        <button id="resendScoreBtn" class="resend-score-btn hidden" type="button">ランキング再送</button>
         <div id="rankingPanel" class="ranking-panel" aria-live="polite">
           <div class="ranking-title">スコアランキング TOP10</div>
           <div id="rankingContent" class="note-text">ランキング読み込み中...</div>
@@ -1600,6 +1618,7 @@
           <button id="resultHomeBtn">ホームへ戻る</button>
           <button id="resultLabBtn">他のゲームで遊ぶ</button>
         </div>
+        <div id="clientVersionText" class="note-text client-version"></div>
       </div>
     </section>
 
@@ -1739,6 +1758,7 @@ hitWidth: 46,
       detailReportFallback: $("detailReportFallback"),
       sendStatus: $("sendStatus"),
       rankingContent: $("rankingContent"),
+      clientVersionText: $("clientVersionText"),
       rewardTitle: $("rewardTitle"),
       rewardInfo: $("rewardInfo"),
       rewardChoices: $("rewardChoices"),
@@ -1758,7 +1778,7 @@ hitWidth: 46,
         setupStart: $("setupStartBtn"), setupBack: $("setupBackBtn"),
         retire: $("retireBtn"),
         outcomeResult: $("outcomeResultBtn"),
-        retry: $("retryBtn"), resultShare: $("resultShareBtn"), copyDetail: $("copyDetailBtn"), resultLab: $("resultLabBtn"), resultHome: $("resultHomeBtn"),
+        retry: $("retryBtn"), resultShare: $("resultShareBtn"), copyDetail: $("copyDetailBtn"), resendScore: $("resendScoreBtn"), resultLab: $("resultLabBtn"), resultHome: $("resultHomeBtn"),
         left: $("leftBtn"), right: $("rightBtn"), jump: $("jumpBtn"), crouch: $("crouchBtn"), attack: $("attackBtn"), guard: $("guardBtn")
       }
     };
@@ -3573,8 +3593,10 @@ hitWidth: 46,
         dom.bdElapsed.textContent = `${result.reports.reduce((sum, r) => sum + r.elapsedSec, 0)}秒`;
         dom.detailReport.textContent = makeDetailedReportText(result);
         dom.detailReportFallback.classList.add("hidden");
-        dom.sendStatus.textContent = "ランキング送信中...";
+        dom.sendStatus.textContent = "ランキング保存中…";
         dom.sendStatus.className = "send-status";
+        if (dom.clientVersionText) dom.clientVersionText.textContent = `version: ${GAME.version}`;
+        updateResendButtonVisibility();
         renderRankingMessage("ランキング読み込み中...");
         return;
       }
@@ -3587,28 +3609,153 @@ hitWidth: 46,
       dom.bdEnemyBroken.textContent = String(result.enemyPartsBroken);
       dom.bdPlayerBroken.textContent = String(result.playerPartsBroken);
       dom.bdElapsed.textContent = `${result.elapsedSec}秒`;
-      dom.sendStatus.textContent = "ランキング送信中...";
+      dom.sendStatus.textContent = "ランキング保存中…";
       dom.sendStatus.className = "send-status";
+      if (dom.clientVersionText) dom.clientVersionText.textContent = `version: ${GAME.version}`;
+      updateResendButtonVisibility();
       renderRankingMessage("ランキング読み込み中...");
     }
 
-    async function sendScoreAfterResult(result) {
+    const PENDING_SCORES_KEY = "songen_wo_kakeyouka2_pending_scores_v1";
+    let isFlushingScores = false;
+
+    function loadPendingScores() {
+      try {
+        const parsed = safeParseJson(localStorage.getItem(PENDING_SCORES_KEY) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        console.warn("pending score load failed", error);
+        return [];
+      }
+    }
+
+    function savePendingScores(list) {
+      try {
+        localStorage.setItem(PENDING_SCORES_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+        return true;
+      } catch (error) {
+        console.warn("pending score save failed", error);
+        return false;
+      }
+    }
+
+    function enqueuePendingScore(payload) {
+      const score = Math.trunc(Number(payload.score));
+      const item = {
+        id: payload.id || `${GAME.slug}:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+        displayName: payload.displayName || "名無し",
+        gameSlug: GAME.slug,
+        score,
+        clientVersion: payload.clientVersion || GAME.version,
+        createdAt: Number(payload.createdAt || Date.now()),
+        attempts: Number(payload.attempts || 0),
+        lastError: payload.lastError || null
+      };
+      const list = loadPendingScores();
+      list.push(item);
+      savePendingScores(list);
+      updateResendButtonVisibility();
+      return item;
+    }
+
+    function removePendingScore(id) {
+      const list = loadPendingScores().filter((item) => item.id !== id);
+      savePendingScores(list);
+      updateResendButtonVisibility();
+    }
+
+    function updatePendingScore(id, patch) {
+      const list = loadPendingScores().map((item) => item.id === id ? { ...item, ...patch } : item);
+      savePendingScores(list);
+      updateResendButtonVisibility();
+    }
+
+    function hasPendingScores() {
+      return loadPendingScores().length > 0;
+    }
+
+    function updateResendButtonVisibility() {
+      if (!dom.buttons.resendScore) return;
+      dom.buttons.resendScore.classList.toggle("hidden", !hasPendingScores());
+    }
+
+    async function flushPendingScores() {
+      if (isFlushingScores) return false;
       if (!supabaseConfigured()) {
-        dom.sendStatus.textContent = "ランキング連携：Publishable key設定後に有効になります";
-        dom.sendStatus.className = "send-status";
-        renderRankingMessage("ランキングを読み込めませんでした");
+        updateResendButtonVisibility();
+        return false;
+      }
+
+      const pending = loadPendingScores();
+      if (!pending.length) {
+        updateResendButtonVisibility();
+        return true;
+      }
+
+      isFlushingScores = true;
+      let allSucceeded = true;
+
+      try {
+        for (const item of pending) {
+          try {
+            await submitScore(item.displayName, item.score, item.clientVersion);
+            removePendingScore(item.id);
+          } catch (error) {
+            allSucceeded = false;
+            updatePendingScore(item.id, {
+              attempts: Number(item.attempts || 0) + 1,
+              lastError: error && error.message ? String(error.message).slice(0, 120) : "送信失敗"
+            });
+            break;
+          }
+        }
+      } finally {
+        isFlushingScores = false;
+        updateResendButtonVisibility();
+      }
+
+      if (dom.sendStatus) {
+        if (hasPendingScores()) {
+          dom.sendStatus.textContent = "ランキング保存待ちです。通信が戻ると再送します";
+          dom.sendStatus.className = "send-status ng";
+        } else if (allSucceeded) {
+          dom.sendStatus.textContent = "ランキング登録しました";
+          dom.sendStatus.className = "send-status ok";
+        }
+      }
+      return allSucceeded;
+    }
+
+    async function sendScoreAfterResult(result) {
+      const score = Math.trunc(Number(result.totalScore ?? result.score));
+      if (!Number.isFinite(score)) {
+        dom.sendStatus.textContent = "スコア値が不正のため送信できません";
+        dom.sendStatus.className = "send-status ng";
+        console.warn("invalid score", result);
         return;
       }
 
-      try {
-        await submitScore(result.playerName || runState.settings?.playerName || "名無し", result.totalScore ?? result.score);
-        dom.sendStatus.textContent = "ランキング登録しました";
-        dom.sendStatus.className = "send-status ok";
-      } catch (error) {
-        const message = error && error.message ? String(error.message).slice(0, 90) : "詳細不明";
-        dom.sendStatus.textContent = "ランキング登録に失敗しました：" + message;
-        dom.sendStatus.className = "send-status ng";
-        console.warn("score submit failed", error);
+      enqueuePendingScore({
+        displayName: result.playerName || runState.settings?.playerName || "名無し",
+        score,
+        clientVersion: GAME.version
+      });
+
+      if (!supabaseConfigured()) {
+        dom.sendStatus.textContent = "ランキング連携：設定後に有効になります";
+        dom.sendStatus.className = "send-status";
+        updateResendButtonVisibility();
+      } else {
+        dom.sendStatus.textContent = "ランキング保存中…";
+        dom.sendStatus.className = "send-status";
+        const sent = await flushPendingScores();
+        if (sent && !hasPendingScores()) {
+          dom.sendStatus.textContent = "ランキング登録しました";
+          dom.sendStatus.className = "send-status ok";
+        } else if (hasPendingScores()) {
+          dom.sendStatus.textContent = "ランキング保存待ちです。通信が戻ると再送します";
+          dom.sendStatus.className = "send-status ng";
+        }
       }
 
       try {
@@ -3635,7 +3782,7 @@ hitWidth: 46,
       const key = getSupabasePublishableKey();
       const headers = { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` };
       const request = async (body) => {
-        const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+        const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), keepalive: true });
         const text = await response.text().catch(() => "");
         if (!response.ok) throw new Error(sanitizeSubmitError(text || `HTTP ${response.status}`));
         return normalizeRankingRows(safeParseJson(text));
@@ -3696,7 +3843,7 @@ function getSupabasePublishableKey() {
         && !SUPABASE_URL.includes("YOUR_PROJECT_ID");
     }
 
-    async function submitScore(displayName, score) {
+    async function submitScore(displayName, score, clientVersion = GAME.version) {
       if (!supabaseConfigured()) {
         throw new Error("Supabase is not configured");
       }
@@ -3712,10 +3859,10 @@ function getSupabasePublishableKey() {
         p_display_name: displayName,
         p_game_slug: GAME.slug,
         p_score: Math.trunc(score),
-        p_client_version: GAME.version
+        p_client_version: clientVersion || GAME.version
       };
 
-      const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body) });
+      const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), keepalive: true });
       const text = await response.text().catch(() => "");
       if (!response.ok) {
         throw new Error(sanitizeSubmitError(text || `HTTP ${response.status}`));
@@ -3974,6 +4121,11 @@ function getSupabasePublishableKey() {
       bindTapButton(dom.buttons.resultLab, () => {
         location.href = GAME.labUrl;
       });
+      bindTapButton(dom.buttons.resendScore, () => {
+        dom.sendStatus.textContent = "ランキング保存中…";
+        dom.sendStatus.className = "send-status";
+        flushPendingScores();
+      });
       bindTapButton(dom.buttons.retry, () => {
         showSetup();
       });
@@ -4047,6 +4199,13 @@ function getSupabasePublishableKey() {
       bindSetupChoices();
       preventGestureZoom();
       bindBrowserGestureGuard();
+      updateResendButtonVisibility();
+      flushPendingScores();
+      window.addEventListener("online", () => flushPendingScores());
+      window.addEventListener("focus", () => flushPendingScores());
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) flushPendingScores();
+      });
       let saved = "";
       try { saved = localStorage.getItem("songen_player_name") || ""; } catch (error) {}
       dom.playerNameInput.value = saved;
