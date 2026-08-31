@@ -786,6 +786,39 @@
       white-space: pre-wrap;
     }
 
+    .total-share-text {
+      width: 100%;
+      min-height: 112px;
+      margin-top: 14px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      line-height: 1.55;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .name-error {
+      min-height: 1.5em;
+      margin: 8px 0 0;
+      color: var(--danger);
+      font-size: 13px;
+    }
+
+    .result-lab-link {
+      display: block;
+      margin-top: 10px;
+      color: var(--accent);
+      text-align: center;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
     .projectile {
       position: absolute;
       z-index: 20;
@@ -1459,7 +1492,8 @@
         <div class="setup-grid">
           <label>
             <div class="section-title">プレイヤー名</div>
-            <input id="playerNameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前を入力" />
+            <input id="playerNameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前を入力" aria-describedby="playerNameError" />
+            <p id="playerNameError" class="name-error" role="alert" aria-live="polite"></p>
           </label>
 
           <div>
@@ -1605,6 +1639,7 @@
         </div>
         <div id="detailReport" class="detail-report"></div>
         <textarea id="detailReportFallback" class="detail-report-fallback hidden" readonly></textarea>
+        <textarea id="totalShareText" class="total-share-text" readonly aria-label="総合結果のシェア文"></textarea>
         <div id="sendStatus" class="send-status">ランキング保存中…</div>
         <button id="resendScoreBtn" class="resend-score-btn hidden" type="button">ランキング再送</button>
         <div id="rankingPanel" class="ranking-panel" aria-live="polite">
@@ -1618,6 +1653,7 @@
           <button id="resultHomeBtn">ホームへ戻る</button>
           <button id="resultLabBtn">他のゲームで遊ぶ</button>
         </div>
+        <a class="result-lab-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/" target="_blank" rel="noopener noreferrer">カメレオンJPの実験場へ</a>
         <div id="clientVersionText" class="note-text client-version"></div>
       </div>
     </section>
@@ -1639,7 +1675,7 @@
     const GAME = Object.freeze({
       title: "尊厳を賭けようか2",
       slug: "songen_wo_kakeyouka2",
-      url: "https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/",
+      url: "https://chameleonjp-lab.github.io/songen_wo_kakeyouka2/",
       labUrl: "https://chameleonjp-lab.github.io/chameleonjp_lab/",
       durationSec: 180,
       version: "songen_wo_kakeyouka2_v1_20260626_01_pending_score_retry"
@@ -1719,6 +1755,7 @@ hitWidth: 46,
       toast: $("toast"),
       rulesModal: $("rulesModal"),
       playerNameInput: $("playerNameInput"),
+      playerNameError: $("playerNameError"),
       playerHeadGrid: $("playerHeadGrid"),
       cpuHeadGrid: $("cpuHeadGrid"),
       battleNoValue: $("battleNoValue"),
@@ -1756,6 +1793,7 @@ hitWidth: 46,
       bdElapsed: $("bdElapsed"),
       detailReport: $("detailReport"),
       detailReportFallback: $("detailReportFallback"),
+      totalShareText: $("totalShareText"),
       sendStatus: $("sendStatus"),
       rankingContent: $("rankingContent"),
       clientVersionText: $("clientVersionText"),
@@ -1933,7 +1971,13 @@ hitWidth: 46,
     }
 
     function collectSettings() {
-      const playerName = sanitizeName(dom.playerNameInput.value, "名無し", 12);
+      const playerName = sanitizeName(dom.playerNameInput.value, "", 12);
+      if (!playerName) {
+        if (dom.playerNameError) dom.playerNameError.textContent = "プレイヤー名を入力してください。";
+        dom.playerNameInput.focus();
+        return null;
+      }
+      if (dom.playerNameError) dom.playerNameError.textContent = "";
       try { localStorage.setItem("songen_player_name", playerName); } catch (error) {}
       const cpuName = RUN_ENEMIES[0];
       const playerHead = selectedPlayerHead || randItem(HEADS);
@@ -1944,6 +1988,7 @@ hitWidth: 46,
 
     function startRun() {
       const settings = collectSettings();
+      if (!settings) return;
       runState.active = true;
       runState.battleNo = 1;
       runState.maxBattles = RUN_MAX_BATTLES;
@@ -3592,6 +3637,7 @@ hitWidth: 46,
         dom.bdPlayerBroken.textContent = String(result.reports.reduce((sum, r) => sum + r.playerPartsBroken, 0));
         dom.bdElapsed.textContent = `${result.reports.reduce((sum, r) => sum + r.elapsedSec, 0)}秒`;
         dom.detailReport.textContent = makeDetailedReportText(result);
+        if (dom.totalShareText) dom.totalShareText.value = makeTotalShareText(result);
         dom.detailReportFallback.classList.add("hidden");
         dom.sendStatus.textContent = "ランキング保存中…";
         dom.sendStatus.className = "send-status";
@@ -3609,6 +3655,7 @@ hitWidth: 46,
       dom.bdEnemyBroken.textContent = String(result.enemyPartsBroken);
       dom.bdPlayerBroken.textContent = String(result.playerPartsBroken);
       dom.bdElapsed.textContent = `${result.elapsedSec}秒`;
+      if (dom.totalShareText) dom.totalShareText.value = makeTotalShareText(result);
       dom.sendStatus.textContent = "ランキング保存中…";
       dom.sendStatus.className = "send-status";
       if (dom.clientVersionText) dom.clientVersionText.textContent = `version: ${GAME.version}`;
