@@ -12,7 +12,7 @@ function setup(open=()=>null,writeText=async()=>{}) {
     nodes.set(id,{value:'',textContent:'',open:false,events:{},addEventListener(name,cb){this.events[name]=cb;},showModal(){this.open=true;},close(){this.open=false;},focus(){},select(){this.selected=true;}});
   }
   const window={open};
-  vm.runInNewContext(helper,{window,document:{getElementById:id=>nodes.get(id)},navigator:{clipboard:{writeText}},URL});
+  vm.runInNewContext(helper,{SongenI18n:{t:k=>({s097:"コピーしました。投稿はXで確認してください。",s098:"本文を選択して手動でコピーしてください。"})[k]},window,document:{getElementById:id=>nodes.get(id)},navigator:{clipboard:{writeText}},URL});
   return {window,nodes};
 }
 test('X receives exact UTF-8 text, URL, symbols and newlines; opener is detached',()=>{

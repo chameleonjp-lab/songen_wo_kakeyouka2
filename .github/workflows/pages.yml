@@ -19,16 +19,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: node scripts/share.test.mjs
+      - run: npm ci --ignore-scripts
+      - run: npm test
       - run: python scripts/test-pages.py
       - run: python scripts/prepare-pages.py
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name == 'push'
         with:
           path: _site
+  browser:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts
+      - run: npm run test:browser
+        env:
+          HOME: /root
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: validate
+    needs: [validate, browser]
     runs-on: ubuntu-latest
     permissions:
       contents: read

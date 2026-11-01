@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test';
+export default defineConfig({testDir:'./browser-tests',use:{baseURL:'http://127.0.0.1:4199',viewport:{width:402,height:874}},projects:[{name:'chromium',use:{browserName:'chromium'}},{name:'webkit',use:{browserName:'webkit'}}],webServer:{command:'python3 -m http.server 4199 --bind 127.0.0.1',url:'http://127.0.0.1:4199',reuseExistingServer:false},reporter:'list'});
