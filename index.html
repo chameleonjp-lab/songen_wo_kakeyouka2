@@ -4178,7 +4178,7 @@ function getSupabasePublishableKey() {
       const languageSelect=document.getElementById("languageSelect");
       const languageNames={ja:"日本語",en:"English",es:"Español","pt-BR":"Português (Brasil)","zh-Hans":"简体中文",fr:"Français",de:"Deutsch",ko:"한국어",ru:"Русский",it:"Italiano","zh-Hant":"繁體中文",id:"Bahasa Indonesia",tr:"Türkçe",vi:"Tiếng Việt",th:"ไทย"};
       for(const locale of SongenI18n.locales){const option=document.createElement("option");option.value=locale;option.textContent=languageNames[locale];languageSelect.appendChild(option);}languageSelect.value=SongenI18n.language;
-      languageSelect.addEventListener("change",()=>{ if(!dom.screens.home.classList.contains("active"))return;SongenI18n.set(languageSelect.value); });
+      languageSelect.addEventListener("change",()=>{ if(!dom.screens.home.classList.contains("active"))return;SongenI18n.set(languageSelect.value); const notice=document.getElementById("legacyPendingNotice"); if(notice) notice.textContent=SongenI18n.t("s214"); });
 
       const soundOn = document.getElementById("soundOn"), soundVolume = document.getElementById("soundVolume");
       soundOn.checked = uiAudio.enabled; soundVolume.value = String(uiAudio.volume);
@@ -4191,7 +4191,7 @@ function getSupabasePublishableKey() {
 
       document.getElementById("rankingRetryBtn").addEventListener("click", () => refreshRanking());
       let oldPending = null; try { oldPending = safeStorage?.getItem(LEGACY_PENDING_KEY); } catch {}
-      if (oldPending && oldPending !== "[]") { const notice=document.createElement("p");notice.className="note-text";notice.textContent=SongenI18n.t("s214");dom.screens.home.appendChild(notice); }
+      if (oldPending && oldPending !== "[]") { const notice=document.createElement("p");notice.id="legacyPendingNotice";notice.className="note-text";notice.textContent=SongenI18n.t("s214");dom.screens.home.appendChild(notice); }
       initHeadGrid(dom.playerHeadGrid, "player");
       initHeadGrid(dom.cpuHeadGrid, "cpu");
       bindControls();
