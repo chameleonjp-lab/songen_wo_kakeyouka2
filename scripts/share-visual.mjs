@@ -23,7 +23,17 @@ try {
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(origin+'/');
   assert.equal(await page.locator('#languageSelect').inputValue(),lang);
   async function share(screen,expected){
-   const button=page.locator(screen==='home'?'#homeShareBtn':'#resultShareBtn');await button.scrollIntoViewIfNeeded();const geometry=await button.evaluate(inspectShareTarget);
+   const button=page.locator(screen==='home'?'#homeShareBtn':'#resultShareBtn');
+   // The real card enters from opacity:0 / scale(.985). Wait for that finite transition,
+   // rather than inspecting its intentional invisible first frame or disabling animation.
+   const transition=await button.evaluate(async el=>{
+    const entries=[];for(let node=el;node;node=node.parentElement)for(const animation of node.getAnimations())if(animation.animationName==='cardIn')entries.push({node,animation});
+    const before=entries.map(({node,animation})=>({opacity:getComputedStyle(node).opacity,state:animation.playState,currentTime:animation.currentTime}));
+    await Promise.all(entries.map(({animation})=>animation.finished));
+    return {before,after:entries.map(({node,animation})=>({opacity:getComputedStyle(node).opacity,state:animation.playState}))};
+   });
+   fs.writeFileSync(path.join(out,`${engine}-${lang}-${orientation}-${screen}-transition.json`),JSON.stringify(transition,null,2));
+   await button.scrollIntoViewIfNeeded();const geometry=await button.evaluate(inspectShareTarget);
    for(const k of ['visible','viewport','unclipped','hit','fits'])assert.equal(geometry[k],true,`${lang} ${orientation} ${screen} ${k} ${JSON.stringify(geometry)}`);assert.ok(geometry.width>=44&&geometry.height>=44);
    assert.equal(await button.textContent(),await page.evaluate(()=>SongenI18n.t('s007')));const colors=await button.evaluate(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}));assert.deepEqual(colors,{background:'rgb(0, 0, 0)',color:'rgb(255, 255, 255)'});
    if(['ja','en','de'].includes(lang))await page.screenshot({path:path.join(out,`${engine}-${lang}-${orientation}-${screen}.png`)});
