@@ -1,4 +1,18 @@
 import {test,expect} from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+const root=path.resolve(new URL('..',import.meta.url).pathname);
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'scripts/pages-files.json'),'utf8'));
+const allowed=new Set([...manifest.required,...manifest.optional]);
+test.use({serviceWorkers:'block'});
+test.beforeEach(async({context})=>{
+ await context.routeWebSocket('**/*',ws=>ws.close());
+ await context.route('**/*',async route=>{
+  const r=route.request(),u=new URL(r.url()),relative=u.pathname==='/'?'index.html':decodeURIComponent(u.pathname.slice(1));
+  if(u.origin!=='http://127.0.0.1:4199'||!['GET','HEAD'].includes(r.method())||!allowed.has(relative))return route.abort('blockedbyclient');
+  return route.fulfill({status:200,contentType:relative.endsWith('.html')?'text/html':'application/javascript',body:r.method()==='HEAD'?Buffer.alloc(0):fs.readFileSync(path.join(root,relative))});
+ });
+});
 const locales=['ja','en','es','pt-BR','zh-Hans','fr','de','ko','ru','it','zh-Hant','id','tr','vi','th'];
 test.beforeEach(async({page})=>{await page.route('**/*.supabase.co/**',async route=>{const url=route.request().url();if(url.endsWith('get_best_score_ranking'))await route.fulfill({json:Array.from({length:30},(_,i)=>({rank_no:i<2?1:i+1,display_name:'<b>長い名前</b>'+i,best_score:100-i}))});else await route.fulfill({status:503,json:{error:'test: score network blocked'}});});await page.goto('/');});
 for(const locale of locales)test(`home ${locale}: saved preference, labels, long controls, black/white share`,async({page})=>{await page.locator('#languageSelect').selectOption(locale);await expect(page.locator('html')).toHaveAttribute('lang',locale);const expected=await page.evaluate(()=>SongenI18n.t('s007'));await expect(page.locator('#homeShareBtn')).toHaveText(expected);await expect(page.locator('#playerNameInput')).toBeVisible();const css=await page.locator('#homeShareBtn').evaluate(el=>({bg:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color,width:el.getBoundingClientRect().width,scroll:el.scrollWidth}));expect(css.bg).toBe('rgb(0, 0, 0)');expect(css.color).toBe('rgb(255, 255, 255)');expect(css.scroll).toBeLessThanOrEqual(css.width+2);await page.reload();await expect(page.locator('#languageSelect')).toHaveValue(locale);});
