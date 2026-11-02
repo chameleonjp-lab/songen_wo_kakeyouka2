@@ -1,0 +1,10 @@
+{
+  "required": [
+    "index.html",
+    "common.js",
+    "audio.js",
+    "languages.js",
+    "i18n.js"
+  ],
+  "optional": []
+}

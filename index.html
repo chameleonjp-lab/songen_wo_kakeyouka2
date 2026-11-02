@@ -1454,11 +1454,18 @@
     <section id="homeScreen" class="screen active" aria-label="ホーム画面">
       <div class="card">
         <div class="heart-logo">🫀</div>
-        <h1 class="title">尊厳を<br />賭けようか2</h1>
+        <h1 class="title">尊厳を賭けようか2</h1>
         <p class="subtitle">5人抜きで尊厳を守れ。<br />壊れた体を引きずって、次の相手へ進め。</p>
+          <label>
+            <div class="section-title">プレイヤー名</div>
+            <input id="playerNameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前を入力" aria-describedby="nameNotice playerNameError" />
+            <p id="nameNotice" class="note-text">名前を入力すると、名前と記録がランキングに公開されます。空欄でも遊べます。</p>
+            <p id="playerNameError" class="name-error" role="alert" aria-live="polite"></p>
+          </label>
+        <div class="common-settings"><label>言語 <select id="languageSelect"></select></label><label>音 <input id="soundOn" type="checkbox" checked></label><label>音量 <input id="soundVolume" type="range" min="0" max="1" step="0.05" value="0.3"></label></div>
         <div class="button-stack">
           <button id="homeStartBtn" class="primary">ゲーム開始</button>
-          <button id="homeShareBtn">ゲームをシェア</button>
+          <button id="homeShareBtn" class="common-x-share">Xでシェア</button><a class="common-ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=songen_wo_kakeyouka2">ランキング</a>
           <button id="homeRulesBtn">ルール説明</button>
           <button id="homeLabBtn">他のゲームで遊ぶ</button>
         </div>
@@ -1490,11 +1497,7 @@
       <div class="card">
         <h2 class="section-title">試合前の設定</h2>
         <div class="setup-grid">
-          <label>
-            <div class="section-title">プレイヤー名</div>
-            <input id="playerNameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="名前を入力" aria-describedby="playerNameError" />
-            <p id="playerNameError" class="name-error" role="alert" aria-live="polite"></p>
-          </label>
+
 
           <div>
             <div class="section-title">プレイヤー頭選択</div>
@@ -1643,11 +1646,13 @@
         <div id="sendStatus" class="send-status">ランキング保存中…</div>
         <button id="resendScoreBtn" class="resend-score-btn hidden" type="button">ランキング再送</button>
         <div id="rankingPanel" class="ranking-panel" aria-live="polite">
-          <div class="ranking-title">スコアランキング TOP10</div>
+          <div class="ranking-title">スコアランキング 上位30名</div>
+          <p class="note-text">現在のランキングは保存名単位です。同名の別人を区別する方式は準備中です。</p>
           <div id="rankingContent" class="note-text">ランキング読み込み中...</div>
+          <button id="rankingRetryBtn" type="button">再試行</button>
         </div>
         <div class="button-stack">
-          <button id="resultShareBtn">総合結果をシェア</button>
+          <button id="resultShareBtn" class="common-x-share">Xでシェア</button><a class="common-ranking-link" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=songen_wo_kakeyouka2">ランキング</a>
           <button id="copyDetailBtn">詳細レポートをコピー</button>
           <button id="retryBtn" class="primary">もう一度遊ぶ</button>
           <button id="resultHomeBtn">ホームへ戻る</button>
@@ -1661,7 +1666,72 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </div>
 
-  <script>
+  <style>
+.common-settings { display:flex; flex-wrap:wrap; gap:12px; margin:14px 0; }
+.common-settings label { display:flex; align-items:center; gap:8px; min-height:44px; }
+.common-settings select { max-width:100%; min-height:44px; font:inherit; }
+.title, .section-title, .outcome-status, button, .ranking-name { overflow-wrap:anywhere; }
+button.common-x-share { background:#000 !important; color:#fff !important; border:1px solid #555; white-space:normal; overflow-wrap:anywhere; min-height:44px; padding:12px 16px; line-height:1.4; }
+.common-ranking-link { display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-height:44px; padding:12px 16px; border:1px solid currentColor; border-radius:10px; color:inherit; text-decoration:none; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
+#commonShareFallback { box-sizing:border-box; width:min(92vw,32rem); max-height:85dvh; overflow:auto; border:1px solid #777; border-radius:12px; padding:20px; background:#fff; color:#111; }
+#commonShareFallback::backdrop { background:#0009; }
+#commonShareFallback textarea { box-sizing:border-box; width:100%; min-height:160px; padding:10px; font:16px/1.5 sans-serif; color:#111; background:#fff; user-select:text; -webkit-user-select:text; }
+#commonShareFallback button { min-height:44px; margin:6px; padding:10px 16px; white-space:normal; color:#fff; background:#222; }
+</style>
+<dialog id="commonShareFallback" aria-labelledby="commonShareHeading">
+  <h2 id="commonShareHeading">共有文をコピー</h2>
+  <p>Xを開けない場合は、本文とURLをコピーして投稿できます。</p>
+  <textarea id="commonShareText" readonly aria-label="共有する本文とURL"></textarea>
+  <p id="commonShareStatus" role="status" aria-live="polite"></p>
+  <button id="commonShareCopy" type="button">コピー</button>
+  <button id="commonShareClose" type="button">閉じる</button>
+</dialog>
+<script src="languages.js"></script>
+<script src="i18n.js"></script>
+<script src="common.js"></script>
+<script src="audio.js"></script>
+<script>
+(() => {
+  'use strict';
+  const dialog = document.getElementById('commonShareFallback');
+  const field = document.getElementById('commonShareText');
+  const status = document.getElementById('commonShareStatus');
+  window.openGameShareX = (text) => {
+    const body = String(text);
+    const intent = new URL('https://x.com/intent/post');
+    intent.searchParams.set('text', body);
+    let popup;
+    try {
+      popup = window.open('', '_blank');
+      if (popup) {
+        popup.opener = null;
+        popup.location.replace(intent.href);
+        return;
+      }
+    } catch (_) {
+      try { if (popup) popup.close(); } catch (_) {}
+    }
+    field.value = body;
+    status.textContent = '';
+    if (!dialog.open) dialog.showModal();
+    field.focus();
+    field.select();
+  };
+  document.getElementById('commonShareCopy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(field.value);
+      status.textContent = SongenI18n.t("s097");
+    } catch (_) {
+      field.focus();
+      field.select();
+      status.textContent = SongenI18n.t("s098");
+    }
+  });
+  document.getElementById('commonShareClose').addEventListener('click', () => dialog.close());
+})();
+</script>
+
+<script>
     "use strict";
 
     /******************************************************************
@@ -1673,9 +1743,9 @@
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_drzcy0v97knU6FgjqSgBHw_0A9XPdFM";
 
     const GAME = Object.freeze({
-      title: "尊厳を賭けようか2",
+      get title() { return SongenI18n.t("s001"); },
       slug: "songen_wo_kakeyouka2",
-      url: "https://chameleonjp-lab.github.io/songen_wo_kakeyouka2/",
+      url: "https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/",
       labUrl: "https://chameleonjp-lab.github.io/chameleonjp_lab/",
       durationSec: 180,
       version: "songen_wo_kakeyouka2_v1_20260626_01_pending_score_retry"
@@ -1684,21 +1754,22 @@
     const RUN_MAX_BATTLES = 5;
     const REWARD_SCORE = 1000;
     const RUN_ENEMIES = ["徘徊者", "コメ職人", "荒らし", "モデレーター", "尊厳の管理人"];
+    function enemyAt(index) { return [SongenI18n.t("s099"), SongenI18n.t("s100"), SongenI18n.t("s101"), SongenI18n.t("s102"), SongenI18n.t("s103")][index]; }
 
 
     const CPU_PROFILES = Object.freeze({
-      guardCounter: { label: "ガード反撃型", attackChance: 0.38, attackIntervalMin: 330, attackIntervalMax: 560, partDefenseChance: 0.68, heartDefenseChance: 0.92, guardDelayMin: 55, guardDelayMax: 170, counterAfterGuardChance: 0.75, lowBias: 0.20, highBias: 0.20, keepAway: 0.20 },
-      legBreaker: { label: "足狙い型", attackChance: 0.48, attackIntervalMin: 320, attackIntervalMax: 540, partDefenseChance: 0.48, heartDefenseChance: 0.84, guardDelayMin: 70, guardDelayMax: 210, counterAfterGuardChance: 0.35, lowBias: 0.62, highBias: 0.08, keepAway: 0.10 },
-      rush: { label: "ラッシュ型", attackChance: 0.62, attackIntervalMin: 260, attackIntervalMax: 430, partDefenseChance: 0.35, heartDefenseChance: 0.72, guardDelayMin: 80, guardDelayMax: 230, counterAfterGuardChance: 0.25, lowBias: 0.25, highBias: 0.18, keepAway: 0.00 },
-      headHunter: { label: "頭狙い型", attackChance: 0.48, attackIntervalMin: 320, attackIntervalMax: 540, partDefenseChance: 0.45, heartDefenseChance: 0.82, guardDelayMin: 70, guardDelayMax: 220, counterAfterGuardChance: 0.35, lowBias: 0.10, highBias: 0.55, keepAway: 0.10 },
-      baiter: { label: "待ち・差し返し型", attackChance: 0.44, attackIntervalMin: 360, attackIntervalMax: 620, partDefenseChance: 0.60, heartDefenseChance: 0.90, guardDelayMin: 55, guardDelayMax: 180, counterAfterGuardChance: 0.60, lowBias: 0.18, highBias: 0.18, keepAway: 0.55 }
+      guardCounter: { get label() { return SongenI18n.t("s104"); }, attackChance: 0.38, attackIntervalMin: 330, attackIntervalMax: 560, partDefenseChance: 0.68, heartDefenseChance: 0.92, guardDelayMin: 55, guardDelayMax: 170, counterAfterGuardChance: 0.75, lowBias: 0.20, highBias: 0.20, keepAway: 0.20 },
+      legBreaker: { get label() { return SongenI18n.t("s105"); }, attackChance: 0.48, attackIntervalMin: 320, attackIntervalMax: 540, partDefenseChance: 0.48, heartDefenseChance: 0.84, guardDelayMin: 70, guardDelayMax: 210, counterAfterGuardChance: 0.35, lowBias: 0.62, highBias: 0.08, keepAway: 0.10 },
+      rush: { get label() { return SongenI18n.t("s106"); }, attackChance: 0.62, attackIntervalMin: 260, attackIntervalMax: 430, partDefenseChance: 0.35, heartDefenseChance: 0.72, guardDelayMin: 80, guardDelayMax: 230, counterAfterGuardChance: 0.25, lowBias: 0.25, highBias: 0.18, keepAway: 0.00 },
+      headHunter: { get label() { return SongenI18n.t("s107"); }, attackChance: 0.48, attackIntervalMin: 320, attackIntervalMax: 540, partDefenseChance: 0.45, heartDefenseChance: 0.82, guardDelayMin: 70, guardDelayMax: 220, counterAfterGuardChance: 0.35, lowBias: 0.10, highBias: 0.55, keepAway: 0.10 },
+      baiter: { get label() { return SongenI18n.t("s108"); }, attackChance: 0.44, attackIntervalMin: 360, attackIntervalMax: 620, partDefenseChance: 0.60, heartDefenseChance: 0.90, guardDelayMin: 55, guardDelayMax: 180, counterAfterGuardChance: 0.60, lowBias: 0.18, highBias: 0.18, keepAway: 0.55 }
     });
 
     const CPU_BATTLE_MULTIPLIERS = Object.freeze([0.85, 1.00, 1.15, 1.30, 1.50]);
     const CPU_PROFILE_CAPS = Object.freeze({ attackChance: 0.72, partDefenseChance: 0.78, heartDefenseChance: 0.95, counterAfterGuardChance: 0.85 });
 
     const HEADS = ["𓃾", "𓃿", "𓄀", "𓄁", "𓄃", "𓄇", "𓅿", "𓆀", "𓆁", "🌕", "🌝", "🔵", "😺", "🐶", "🐯", "🦊", "🐹", "🐻"];
-    const CPU_NAMES = ["徘徊者", "リスナー", "配信者", "枠主", "荒らし", "ROM専", "コメ専", "コメ職人", "ガヤ", "モデレーター", "オーナー"];
+    const CPU_NAMES = [SongenI18n.t("s099"), SongenI18n.t("s109"), SongenI18n.t("s110"), SongenI18n.t("s111"), SongenI18n.t("s101"), SongenI18n.t("s112"), SongenI18n.t("s113"), SongenI18n.t("s100"), SongenI18n.t("s114"), SongenI18n.t("s102"), SongenI18n.t("s115")];
 
     const LIMITS = Object.freeze({
       fistRange: 168,
@@ -1724,19 +1795,19 @@ hitWidth: 46,
     });
 
     const RESULT_TEXT = Object.freeze({
-      win: { label: "勝利" },
-      loss: { label: "敗北" },
-      retire: { label: "リタイア" },
-      draw: { label: "引き分け" }
+      win: { get label() { return SongenI18n.t("s056"); } },
+      loss: { get label() { return SongenI18n.t("s116"); } },
+      retire: { get label() { return SongenI18n.t("s051"); } },
+      draw: { get label() { return SongenI18n.t("s117"); } }
     });
 
     function makeOutcomePhrase(outcome, cpuName, playerName) {
-      const enemy = sanitizeName(cpuName, "CPU", 10);
-      const self = sanitizeName(playerName, "プレイヤー", 12);
-      if (outcome === "win") return `${enemy}の尊厳を破壊した`;
-      if (outcome === "loss") return `${enemy}に${self}の尊厳を破壊された`;
-      if (outcome === "retire") return `${enemy}に${self}の尊厳を差し出した`;
-      return `${enemy}との尊厳は保たれた`;
+      const enemy = String(cpuName || "CPU");
+      const self = sanitizeName(playerName, SongenI18n.t("s043"), 12);
+      if (outcome === "win") return SongenI18n.t("s118",[enemy]);
+      if (outcome === "loss") return SongenI18n.t("s119",[enemy,self]);
+      if (outcome === "retire") return SongenI18n.t("s120",[enemy,self]);
+      return SongenI18n.t("s121",[enemy]);
     }
 
     const $ = (id) => document.getElementById(id);
@@ -1921,26 +1992,10 @@ hitWidth: 46,
     function makeShareText(result) {
       const info = RESULT_TEXT[result.outcome] || RESULT_TEXT.draw;
       const phrase = makeOutcomePhrase(result.outcome, result.cpuName, result.playerName);
-      return `${GAME.title}　で遊んだ！\n結果：${info.label}\n${phrase}\nスコア：${result.score}点\n${GAME.url}`;
+      return SongenI18n.t("s122",[GAME.title,info.label,phrase,result.score,GAME.url]);
     }
 
-    async function shareText(text) {
-      try {
-        if (navigator.share) {
-          await navigator.share({ text });
-          return;
-        }
-        await navigator.clipboard.writeText(text);
-        showToast("シェア文をコピーしました");
-      } catch (error) {
-        try {
-          await navigator.clipboard.writeText(text);
-          showToast("シェア文をコピーしました");
-        } catch (copyError) {
-          showToast("コピーできませんでした");
-        }
-      }
-    }
+    function shareText(text) { window.openGameShareX(text); }
 
     function initHeadGrid(root, type) {
       root.innerHTML = "";
@@ -1972,14 +2027,10 @@ hitWidth: 46,
 
     function collectSettings() {
       const playerName = sanitizeName(dom.playerNameInput.value, "", 12);
-      if (!playerName) {
-        if (dom.playerNameError) dom.playerNameError.textContent = "プレイヤー名を入力してください。";
-        dom.playerNameInput.focus();
-        return null;
-      }
+
       if (dom.playerNameError) dom.playerNameError.textContent = "";
-      try { localStorage.setItem("songen_player_name", playerName); } catch (error) {}
-      const cpuName = RUN_ENEMIES[0];
+      try { localStorage.setItem("songen_wo_kakeyouka2_player_name_v1", playerName); } catch (error) {}
+      const cpuName = enemyAt(0);
       const playerHead = selectedPlayerHead || randItem(HEADS);
       const cpuHead = selectedCpuHead || randItem(HEADS);
       const playerSide = document.querySelector('input[name="playerSide"]:checked')?.value || "left";
@@ -1989,6 +2040,8 @@ hitWidth: 46,
     function startRun() {
       const settings = collectSettings();
       if (!settings) return;
+      currentSubmissionResult = null; rankingEpoch += 1;
+      runState.receipt = SongenCommon.begin(settings.playerName, () => crypto.randomUUID());
       runState.active = true;
       runState.battleNo = 1;
       runState.maxBattles = RUN_MAX_BATTLES;
@@ -2005,13 +2058,16 @@ hitWidth: 46,
       runState.currentCpuProfile = null;
       runState.rewardLocked = false;
       runState.finalized = false;
+      uiAudio.play("start");
       startBattleInRun();
     }
 
     function startBattleInRun() {
+      warningSecond = null;
       const settings = Object.assign({}, runState.settings || collectSettings());
+      settings.playerName = settings.playerName || SongenI18n.t("s229");
       const idx = clamp(runState.battleNo - 1, 0, RUN_ENEMIES.length - 1);
-      settings.cpuName = RUN_ENEMIES[idx];
+      settings.cpuName = enemyAt(idx);
       settings.cpuHead = selectedCpuHead || randItem(HEADS);
       runState.currentCpuProfile = selectCpuProfileForBattle(runState.battleNo);
       setupBattle(settings);
@@ -2029,7 +2085,7 @@ hitWidth: 46,
     }
 
     function makeFinalBossProfile() {
-      return Object.assign(scaleCpuProfile(CPU_PROFILES.guardCounter, 5), { label: "最終ガード反撃型" });
+      return Object.assign(scaleCpuProfile(CPU_PROFILES.guardCounter, 5), { label: SongenI18n.t("s124") });
     }
 
     function selectCpuProfileForBattle(battleNo) {
@@ -2070,16 +2126,16 @@ hitWidth: 46,
     }
 
     function describeParts(parts) {
-      if (!parts) return "全身無事";
-      const labels = { head: "頭", leftArm: "左腕", rightArm: "右腕", leftFoot: "左足", rightFoot: "右足" };
+      if (!parts) return SongenI18n.t("s125");
+      const labels = { head: SongenI18n.t("s126"), leftArm: SongenI18n.t("s127"), rightArm: SongenI18n.t("s128"), leftFoot: SongenI18n.t("s129"), rightFoot: SongenI18n.t("s130") };
       const items = [];
       Object.keys(labels).forEach((part) => {
         const data = parts[part];
         if (!data) return;
-        if (data.broken) items.push(`${labels[part]}なし`);
-        else if (data.damage > 0) items.push(`${labels[part]}負傷`);
+        if (data.broken) items.push(SongenI18n.t("s131",[labels[part]]));
+        else if (data.damage > 0) items.push(SongenI18n.t("s132",[labels[part]]));
       });
-      return items.length ? items.join("、") : "全身無事";
+      return items.length ? items.join("、") : SongenI18n.t("s125");
     }
 
     function getBrokenRecoverableParts(parts) {
@@ -2175,7 +2231,7 @@ hitWidth: 46,
       lastSettings = settings;
 
       showScreen("battle");
-      dom.countdown.textContent = "準備";
+      dom.countdown.textContent = SongenI18n.t("s133");
       dom.countdown.classList.add("active");
 
       requestAnimationFrame(() => {
@@ -2228,7 +2284,7 @@ hitWidth: 46,
     function beginCountdown() {
       enableGameplayBrowserGuard();
       clearInterval(state.countdownTimer);
-      const steps = ["3", "2", "1", "開始"];
+      const steps = ["3", "2", "1", SongenI18n.t("s134")];
       let index = 0;
       dom.countdown.textContent = steps[index];
       dom.countdown.classList.add("active");
@@ -2513,6 +2569,7 @@ hitWidth: 46,
     function doAttack(fighter, timestamp) {
       if (!canAttack(fighter, timestamp)) return false;
       const projectile = createAttackProjectile(fighter, timestamp);
+      uiAudio.play("attack");
       fighter.stamina = Math.max(0, fighter.stamina - attackStaminaCostFor(fighter));
       fighter.lastAttackAt = timestamp;
       if (fighter.id === "player") {
@@ -2690,7 +2747,7 @@ hitWidth: 46,
     }
 
     function showProjectileRecoveryToast() {
-      try { showToast("攻撃相殺処理を安全復帰しました"); } catch (error) {}
+      try { showToast(SongenI18n.t("s135")); } catch (error) {}
     }
 
     function safePartY(fighter, part, fallbackY) {
@@ -2991,6 +3048,7 @@ hitWidth: 46,
     }
 
     function consumeGuardSuccess(target) {
+      uiAudio.play("guard");
       if (target.id === "player") {
         state.stats.guardSuccess += 1;
       } else if (target.id === "cpu") {
@@ -3127,6 +3185,7 @@ hitWidth: 46,
       }
 
       data.damage += 1;
+      uiAudio.play(data.damage >= PART_MAX[part] ? "break" : "hit");
       flashFighter(target.id);
       target.hitInvulnerableUntil = nowMs() + LIMITS.hitStunMs;
       const brokenNow = data.damage >= PART_MAX[part];
@@ -3307,10 +3366,11 @@ hitWidth: 46,
 
     function renderHud(elapsed) {
       const remain = Math.max(0, Math.ceil(GAME.durationSec - elapsed));
-      if (dom.battleNoValue) dom.battleNoValue.textContent = `第${runState.active ? runState.battleNo : 1}戦 / ${RUN_MAX_BATTLES}`;
-      if (dom.enemyNameValue && state.cpu) dom.enemyNameValue.textContent = `相手：${state.cpu.name}`;
+      if (state.running && remain > 0 && remain <= 10 && warningSecond !== remain) { warningSecond = remain; uiAudio.play("warning"); }
+      if (dom.battleNoValue) dom.battleNoValue.textContent = SongenI18n.t("s136",[runState.active ? runState.battleNo : 1,RUN_MAX_BATTLES]);
+      if (dom.enemyNameValue && state.cpu) dom.enemyNameValue.textContent = SongenI18n.t("s137",[state.cpu.name]);
       dom.timeValue.textContent = String(remain);
-      dom.scoreValue.textContent = `${state.stats.score}点`;
+      dom.scoreValue.textContent = SongenI18n.t("s138",[state.stats.score]);
       dom.staminaValue.textContent = state.player.stamina.toFixed(1);
       const full = Math.floor(state.player.stamina);
       const half = state.player.stamina % 1 >= 0.5 ? "▣" : "";
@@ -3374,7 +3434,7 @@ hitWidth: 46,
         playerHead: state.player.head,
         enemyName: state.cpu.name,
         enemyHead: state.cpu.head,
-        cpuProfileLabel: runState.currentCpuProfile?.label || "未設定",
+        cpuProfileLabel: runState.currentCpuProfile?.label || SongenI18n.t("s139"),
         outcome: result.outcome,
         outcomeLabel: (RESULT_TEXT[result.outcome] || RESULT_TEXT.draw).label,
         battleScore: result.score,
@@ -3410,6 +3470,7 @@ hitWidth: 46,
     function finishBattle(outcome, fixedElapsedSec) {
       if (state.ended) return;
       state.ended = true;
+      uiAudio.play("result");
       state.running = false;
       state.countdown = false;
       disableGameplayBrowserGuard();
@@ -3443,31 +3504,29 @@ hitWidth: 46,
 
     function showRewardSelection(report) {
       runState.rewardLocked = false;
-      dom.rewardTitle.textContent = `第${report.battleNo}戦 勝利`;
+      dom.rewardTitle.textContent = SongenI18n.t("s140",[report.battleNo]);
       const currentTotal = runState.battleReports.reduce((sum, r) => sum + r.battleScore, 0) + runState.rewardScoreTotal;
-      dom.rewardInfo.textContent = `戦闘スコア：${report.battleScore}点
-現在の総合スコア：${currentTotal}点
-現在の状態：${describeParts(runState.playerCarryParts)}
-報酬を選んでください`;
+      dom.rewardInfo.textContent = SongenI18n.t("s141",[report.battleScore,currentTotal,describeParts(runState.playerCarryParts)]);
       dom.rewardChoices.innerHTML = "";
-      const labels = { head: "頭", leftArm: "左腕", rightArm: "右腕", leftFoot: "左足", rightFoot: "右足" };
-      appendRewardGroup("復活", getBrokenRecoverableParts(runState.playerCarryParts).map((part) => ({
+      const labels = { head: SongenI18n.t("s126"), leftArm: SongenI18n.t("s127"), rightArm: SongenI18n.t("s128"), leftFoot: SongenI18n.t("s129"), rightFoot: SongenI18n.t("s130") };
+      appendRewardGroup(SongenI18n.t("s142"), getBrokenRecoverableParts(runState.playerCarryParts).map((part) => ({
         type: "revive",
         part,
-        label: `${labels[part]}を復活（耐久1で復帰）`
+        label: SongenI18n.t("s143",[labels[part]])
       })));
-      appendRewardGroup("回復", getInjuredRecoverableParts(runState.playerCarryParts).map((part) => ({
+      appendRewardGroup(SongenI18n.t("s144"), getInjuredRecoverableParts(runState.playerCarryParts).map((part) => ({
         type: "heal",
         part,
-        label: `${labels[part]}を+1回復`
+        label: SongenI18n.t("s145",[labels[part]])
       })));
-      appendRewardGroup("スコア", [{ type: "score", label: `スコア +${REWARD_SCORE}`, primary: true }]);
+      appendRewardGroup(SongenI18n.t("s146"), [{ type: "score", label: SongenI18n.t("s147",[REWARD_SCORE]), primary: true }]);
       showScreen("reward");
     }
 
     function applyReward(reward) {
       if (runState.rewardLocked) return;
       runState.rewardLocked = true;
+      uiAudio.play("reward");
       dom.rewardChoices.querySelectorAll("button").forEach((button) => {
         button.disabled = true;
         button.classList.add("disabled");
@@ -3505,10 +3564,11 @@ hitWidth: 46,
       const totalScore = totalBattleScore + runState.rewardScoreTotal;
       const last = runState.battleReports[runState.battleReports.length - 1];
       const finalOutcome = runState.wins >= runState.maxBattles ? "complete" : (last?.outcome || "draw");
-      const resultLabel = finalOutcome === "complete" ? "5人抜き達成" : `${runState.wins}人抜きで${(RESULT_TEXT[last?.outcome] || RESULT_TEXT.draw).label}`;
+      const resultLabel = finalOutcome === "complete" ? SongenI18n.t("s148") : SongenI18n.t("s149",[runState.wins,(RESULT_TEXT[last?.outcome] || RESULT_TEXT.draw).label]);
       return {
         title: GAME.title,
-        playerName: last?.playerName || runState.settings?.playerName || "名無し",
+        receipt: runState.receipt,
+        playerName: last?.playerName || runState.settings?.playerName || SongenI18n.t("s150"),
         wins: runState.wins,
         maxBattles: runState.maxBattles,
         reachedBattle: last?.battleNo || 1,
@@ -3567,23 +3627,23 @@ hitWidth: 46,
       if (!dom.buttons.outcomeResult) return;
 
       if (runState.active && result.outcome === "win" && runState.battleNo < runState.maxBattles) {
-        dom.buttons.outcomeResult.textContent = "報酬を選ぶ";
+        dom.buttons.outcomeResult.textContent = SongenI18n.t("s151");
         return;
       }
 
       if (runState.active) {
-        dom.buttons.outcomeResult.textContent = "総合結果を見る";
+        dom.buttons.outcomeResult.textContent = SongenI18n.t("s152");
         return;
       }
 
-      dom.buttons.outcomeResult.textContent = "結果を見る";
+      dom.buttons.outcomeResult.textContent = SongenI18n.t("s059");
     }
 
     function renderOutcome(result) {
       const info = RESULT_TEXT[result.outcome] || RESULT_TEXT.draw;
       dom.outcomeStatus.textContent = info.label;
       dom.outcomeMessage.textContent = makeOutcomePhrase(result.outcome, result.cpuName, result.playerName);
-      dom.outcomeScore.textContent = `スコア：${result.score}点`;
+      dom.outcomeScore.textContent = SongenI18n.t("s153",[result.score]);
 
       renderOutcomeFighter(state.player, dom.outcomeFighters.player, dom.outcomeCards.player);
       renderOutcomeFighter(state.cpu, dom.outcomeFighters.cpu, dom.outcomeCards.cpu);
@@ -3603,7 +3663,7 @@ hitWidth: 46,
     function showOutcomeAfterFinish(result) {
       renderOutcome(result);
       updateOutcomeButtonLabel(result);
-      dom.countdown.textContent = "終了";
+      dom.countdown.textContent = SongenI18n.t("s055");
       dom.countdown.classList.add("active");
       setTimeout(() => {
         dom.countdown.classList.remove("active");
@@ -3612,17 +3672,17 @@ hitWidth: 46,
     }
 
     function makeTotalShareText(runResult) {
-      return `${GAME.title} で遊んだ！\n\n結果：${runResult.resultLabel}\n総合スコア：${runResult.totalScore}点\n勝利数：${runResult.wins} / ${runResult.maxBattles}\n最終状態：${describeParts(runResult.finalParts)}\n\n${GAME.url}`;
+      return SongenI18n.t("s154",[GAME.title,runResult.resultLabel,runResult.totalScore,runResult.wins,runResult.maxBattles,describeParts(runResult.finalParts),GAME.url]);
     }
 
     function signed(value) { return value >= 0 ? `+${value}` : String(value); }
 
     function makeDetailedReportText(runResult) {
-      const lines = [`【${GAME.title} 詳細レポート】`, "", `結果：${runResult.resultLabel}`, `総合スコア：${runResult.totalScore}点`, `勝利数：${runResult.wins} / ${runResult.maxBattles}`];
+      const lines = [SongenI18n.t("s155",[GAME.title]), "", SongenI18n.t("s156",[runResult.resultLabel]), SongenI18n.t("s157",[runResult.totalScore]), SongenI18n.t("s158",[runResult.wins,runResult.maxBattles])];
       runResult.reports.forEach((r) => {
-        lines.push("", "--------------------", `第${r.battleNo}戦：${r.enemyName}`, `結果：${r.outcomeLabel}`, `戦闘スコア：${r.battleScore}点`, `経過：${r.elapsedSec}秒`, `CPU戦闘パターン：${r.cpuProfileLabel || "未設定"}`, "", `攻撃：${r.attacks}回`, `うち頭攻撃：${r.headAttacks}回`, `ガード成功：${r.guardSuccess}回`, "", `CPU攻撃：${r.cpuAttacks || 0}回`, `CPU頭攻撃：${r.cpuHeadAttacks || 0}回`, `CPUガード成功：${r.cpuGuardSuccess || 0}回`, `CPU攻撃高さ：下段${r.cpuLowAttacks || 0} / 中段${r.cpuMidAttacks || 0} / 上段${r.cpuHighAttacks || 0}`, "", `敵破壊：${r.enemyPartsBroken}部位`, `敵頭破壊：${r.enemyHeadBroken}`, `壊れた敵頭への追加攻撃：${r.enemyBrokenPartHits}回`, "", `自分破壊：${r.playerPartsBroken}部位`, `自分頭破壊：${r.playerHeadBroken}`, `壊れた自分頭への追加被弾：${r.playerBrokenPartHits}回`, "", `自分の頭攻撃相殺：${r.playerHeadAttackClashes}回`, `自分の💩攻撃を叩かれた回数：${r.playerPoopAttackClashes}回`, `敵の頭攻撃を相殺：${r.cpuHeadAttackClashes}回`, `敵の💩攻撃を叩いた回数：${r.cpuPoopAttackClashes}回`, "", "スコア内訳：", `勝利ボーナス：${signed(r.scoreBreakdown.victory)}`, `攻撃回数：${signed(r.scoreBreakdown.attacks)}`, `ガード成功：${signed(r.scoreBreakdown.guardSuccess)}`, `敵通常部位破壊：${signed(r.scoreBreakdown.enemyBodyPartsBroken)}`, `敵頭破壊：${signed(r.scoreBreakdown.enemyHeadBroken)}`, `壊れた敵頭への追加攻撃：${signed(r.scoreBreakdown.enemyBrokenPartHits)}`, `自分部位破壊：${signed(r.scoreBreakdown.playerPartsBroken)}`, `壊れた自分頭への追加被弾：${signed(r.scoreBreakdown.playerBrokenPartHits)}`, `経過秒数：${signed(r.scoreBreakdown.elapsed)}`, "", `戦闘前の状態：${describeParts(r.playerPartsBefore)}`, `戦闘後の状態：${describeParts(r.playerPartsAfterBattle)}`, `報酬：${r.reward || "なし"}`, `報酬後の状態：${r.playerPartsAfterReward ? describeParts(r.playerPartsAfterReward) : "なし"}`);
+        lines.push("", "--------------------", SongenI18n.t("s159",[r.battleNo,r.enemyName]), SongenI18n.t("s156",[r.outcomeLabel]), SongenI18n.t("s160",[r.battleScore]), SongenI18n.t("s161",[r.elapsedSec]), SongenI18n.t("s162",[r.cpuProfileLabel || SongenI18n.t("s139")]), "", SongenI18n.t("s163",[r.attacks]), SongenI18n.t("s164",[r.headAttacks]), SongenI18n.t("s165",[r.guardSuccess]), "", SongenI18n.t("s166",[r.cpuAttacks || 0]), SongenI18n.t("s167",[r.cpuHeadAttacks || 0]), SongenI18n.t("s168",[r.cpuGuardSuccess || 0]), SongenI18n.t("s169",[r.cpuLowAttacks || 0,r.cpuMidAttacks || 0,r.cpuHighAttacks || 0]), "", SongenI18n.t("s170",[r.enemyPartsBroken]), SongenI18n.t("s171",[r.enemyHeadBroken]), SongenI18n.t("s172",[r.enemyBrokenPartHits]), "", SongenI18n.t("s173",[r.playerPartsBroken]), SongenI18n.t("s174",[r.playerHeadBroken]), SongenI18n.t("s175",[r.playerBrokenPartHits]), "", SongenI18n.t("s176",[r.playerHeadAttackClashes]), SongenI18n.t("s177",[r.playerPoopAttackClashes]), SongenI18n.t("s178",[r.cpuHeadAttackClashes]), SongenI18n.t("s179",[r.cpuPoopAttackClashes]), "", SongenI18n.t("s180"), SongenI18n.t("s181",[signed(r.scoreBreakdown.victory)]), SongenI18n.t("s182",[signed(r.scoreBreakdown.attacks)]), SongenI18n.t("s183",[signed(r.scoreBreakdown.guardSuccess)]), SongenI18n.t("s184",[signed(r.scoreBreakdown.enemyBodyPartsBroken)]), SongenI18n.t("s171",[signed(r.scoreBreakdown.enemyHeadBroken)]), SongenI18n.t("s185",[signed(r.scoreBreakdown.enemyBrokenPartHits)]), SongenI18n.t("s186",[signed(r.scoreBreakdown.playerPartsBroken)]), SongenI18n.t("s187",[signed(r.scoreBreakdown.playerBrokenPartHits)]), SongenI18n.t("s188",[signed(r.scoreBreakdown.elapsed)]), "", SongenI18n.t("s189",[describeParts(r.playerPartsBefore)]), SongenI18n.t("s190",[describeParts(r.playerPartsAfterBattle)]), SongenI18n.t("s191",[r.reward || SongenI18n.t("s192")]), SongenI18n.t("s193",[r.playerPartsAfterReward ? describeParts(r.playerPartsAfterReward) : SongenI18n.t("s192")]));
       });
-      lines.push("", "--------------------", `戦闘スコア合計：${runResult.totalBattleScore}点`, `報酬スコア加算：${runResult.rewardScoreTotal}点`, `総合スコア：${runResult.totalScore}点`);
+      lines.push("", "--------------------", SongenI18n.t("s194",[runResult.totalBattleScore]), SongenI18n.t("s195",[runResult.rewardScoreTotal]), SongenI18n.t("s157",[runResult.totalScore]));
       return lines.join("\n");
     }
 
@@ -3630,236 +3690,130 @@ hitWidth: 46,
       if (result && result.reports) {
         dom.resultMain.textContent = GAME.title;
         dom.resultSub.textContent = result.resultLabel;
-        dom.scoreBig.innerHTML = `<span class="score-label">総合スコア</span><span class="score-number">${result.totalScore}点</span>`;
+        dom.scoreBig.innerHTML = SongenI18n.t("s196",[result.totalScore]);
         dom.bdAttacks.textContent = String(result.reports.reduce((sum, r) => sum + r.attacks, 0));
         dom.bdGuards.textContent = String(result.reports.reduce((sum, r) => sum + r.guardSuccess, 0));
         dom.bdEnemyBroken.textContent = String(result.reports.reduce((sum, r) => sum + r.enemyPartsBroken, 0));
         dom.bdPlayerBroken.textContent = String(result.reports.reduce((sum, r) => sum + r.playerPartsBroken, 0));
-        dom.bdElapsed.textContent = `${result.reports.reduce((sum, r) => sum + r.elapsedSec, 0)}秒`;
+        dom.bdElapsed.textContent = SongenI18n.t("s197",[result.reports.reduce((sum, r) => sum + r.elapsedSec, 0)]);
         dom.detailReport.textContent = makeDetailedReportText(result);
         if (dom.totalShareText) dom.totalShareText.value = makeTotalShareText(result);
         dom.detailReportFallback.classList.add("hidden");
-        dom.sendStatus.textContent = "ランキング保存中…";
+        dom.sendStatus.textContent = SongenI18n.t("s069");
         dom.sendStatus.className = "send-status";
         if (dom.clientVersionText) dom.clientVersionText.textContent = `version: ${GAME.version}`;
         updateResendButtonVisibility();
-        renderRankingMessage("ランキング読み込み中...");
+        renderRankingMessage(SongenI18n.t("s072"));
         return;
       }
       const info = RESULT_TEXT[result.outcome] || RESULT_TEXT.draw;
       dom.resultMain.textContent = info.label;
       dom.resultSub.textContent = makeOutcomePhrase(result.outcome, result.cpuName, result.playerName);
-      dom.scoreBig.innerHTML = `<span class="score-label">スコア</span><span class="score-number">${result.score}点</span>`;
+      dom.scoreBig.innerHTML = SongenI18n.t("s198",[result.score]);
       dom.bdAttacks.textContent = String(result.attacks);
       dom.bdGuards.textContent = String(result.guardSuccess);
       dom.bdEnemyBroken.textContent = String(result.enemyPartsBroken);
       dom.bdPlayerBroken.textContent = String(result.playerPartsBroken);
-      dom.bdElapsed.textContent = `${result.elapsedSec}秒`;
+      dom.bdElapsed.textContent = SongenI18n.t("s197",[result.elapsedSec]);
       if (dom.totalShareText) dom.totalShareText.value = makeTotalShareText(result);
-      dom.sendStatus.textContent = "ランキング保存中…";
+      dom.sendStatus.textContent = SongenI18n.t("s069");
       dom.sendStatus.className = "send-status";
       if (dom.clientVersionText) dom.clientVersionText.textContent = `version: ${GAME.version}`;
       updateResendButtonVisibility();
-      renderRankingMessage("ランキング読み込み中...");
+      renderRankingMessage(SongenI18n.t("s072"));
     }
 
-    const PENDING_SCORES_KEY = "songen_wo_kakeyouka2_pending_scores_v1";
-    let isFlushingScores = false;
-
-    function loadPendingScores() {
-      try {
-        const parsed = safeParseJson(localStorage.getItem(PENDING_SCORES_KEY) || "[]");
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (error) {
-        console.warn("pending score load failed", error);
-        return [];
-      }
-    }
-
-    function savePendingScores(list) {
-      try {
-        localStorage.setItem(PENDING_SCORES_KEY, JSON.stringify(Array.isArray(list) ? list : []));
-        return true;
-      } catch (error) {
-        console.warn("pending score save failed", error);
-        return false;
-      }
-    }
-
-    function enqueuePendingScore(payload) {
-      const score = Math.trunc(Number(payload.score));
-      const item = {
-        id: payload.id || `${GAME.slug}:${Date.now()}:${Math.random().toString(36).slice(2)}`,
-        displayName: payload.displayName || "名無し",
-        gameSlug: GAME.slug,
-        score,
-        clientVersion: payload.clientVersion || GAME.version,
-        createdAt: Number(payload.createdAt || Date.now()),
-        attempts: Number(payload.attempts || 0),
-        lastError: payload.lastError || null
-      };
-      const list = loadPendingScores();
-      list.push(item);
-      savePendingScores(list);
-      updateResendButtonVisibility();
-      return item;
-    }
-
-    function removePendingScore(id) {
-      const list = loadPendingScores().filter((item) => item.id !== id);
-      savePendingScores(list);
-      updateResendButtonVisibility();
-    }
-
-    function updatePendingScore(id, patch) {
-      const list = loadPendingScores().map((item) => item.id === id ? { ...item, ...patch } : item);
-      savePendingScores(list);
-      updateResendButtonVisibility();
-    }
-
-    function hasPendingScores() {
-      return loadPendingScores().length > 0;
-    }
-
+    const PENDING_SCORES_KEY = "songen_wo_kakeyouka2_receipts_v2";
+    const LEGACY_PENDING_KEY = "songen_wo_kakeyouka2_pending_scores_v1";
+    let safeStorage = null;
+    try { safeStorage = window.localStorage; } catch {}
+    const uiAudio = SongenAudio.create(safeStorage, () => { const Audio = window.AudioContext || window.webkitAudioContext; return Audio ? new Audio() : null; });
+    let warningSecond = null;
+    const scoreQueue = SongenCommon.queue(safeStorage, PENDING_SCORES_KEY);
+    let isFlushingScores = null;
+    let currentSubmissionResult = null;
+    let rankingEpoch = 0;
+    let sendFailed = false;
+    function loadPendingScores() { return scoreQueue.items().filter(x => x.status === "pending"); }
+    function hasPendingScores() { return loadPendingScores().length > 0; }
     function updateResendButtonVisibility() {
-      if (!dom.buttons.resendScore) return;
-      dom.buttons.resendScore.classList.toggle("hidden", !hasPendingScores());
+      dom.buttons.resendScore?.classList.toggle("hidden", !hasPendingScores());
+      let warning=document.getElementById("queueDamageWarning");
+      if(!warning){warning=document.createElement("p");warning.id="queueDamageWarning";warning.className="note-text";dom.sendStatus.after(warning);}
+      warning.textContent=scoreQueue.damaged ? SongenI18n.t("s225") : "";
     }
-
+    function showSubmissionStatus(result = currentSubmissionResult) {
+      if (!result || result !== currentSubmissionResult) return;
+      const receipt = result.receipt;
+      let message = SongenI18n.t("s227");
+      if (!receipt?.name) message = SongenI18n.t("s212");
+      else if (!receipt.eligible) message = SongenI18n.t("s224");
+      else if (scoreQueue.conflict) message = SongenI18n.t("s215");
+      else if (!scoreQueue.persisted) message = SongenI18n.t("s213");
+      else if (scoreQueue.items().find(x=>x.id===receipt.id)?.status === "sent") message = SongenI18n.t("s201");
+      else if (sendFailed) message = SongenI18n.t("s228");
+      dom.sendStatus.textContent = message;
+      dom.sendStatus.className = "send-status";
+      updateResendButtonVisibility();
+    }
     async function flushPendingScores() {
-      if (isFlushingScores) return false;
-      if (!supabaseConfigured()) {
-        updateResendButtonVisibility();
-        return false;
-      }
-
-      const pending = loadPendingScores();
-      if (!pending.length) {
-        updateResendButtonVisibility();
-        return true;
-      }
-
-      isFlushingScores = true;
-      let allSucceeded = true;
-
-      try {
-        for (const item of pending) {
+      if (isFlushingScores) return isFlushingScores;
+      if (!hasPendingScores()) return true;
+      sendFailed = false;
+      isFlushingScores = (async () => {
+        const attempted = new Set();
+        while (true) {
+          const item = loadPendingScores().find(x => !attempted.has(x.id));
+          if (!item) break;
+          attempted.add(item.id);
           try {
-            await submitScore(item.displayName, item.score, item.clientVersion);
-            removePendingScore(item.id);
-          } catch (error) {
-            allSucceeded = false;
-            updatePendingScore(item.id, {
-              attempts: Number(item.attempts || 0) + 1,
-              lastError: error && error.message ? String(error.message).slice(0, 120) : "送信失敗"
-            });
-            break;
-          }
+            // Read disk again before transmission. Never claim a colliding payload.
+            const current = scoreQueue.items().find(x => x.id===item.id);
+            if (!current || current.status === "sent" || !SongenCommon.same(item,current)) continue;
+            await submitScore(item);
+            scoreQueue.put({...item,status:"sent"});
+          } catch { sendFailed = true; }
         }
-      } finally {
-        isFlushingScores = false;
-        updateResendButtonVisibility();
-      }
-
-      if (dom.sendStatus) {
-        if (hasPendingScores()) {
-          dom.sendStatus.textContent = "ランキング保存待ちです。通信が戻ると再送します";
-          dom.sendStatus.className = "send-status ng";
-        } else if (allSucceeded) {
-          dom.sendStatus.textContent = "ランキング登録しました";
-          dom.sendStatus.className = "send-status ok";
-        }
-      }
-      return allSucceeded;
+      })();
+      try { await isFlushingScores; } finally { isFlushingScores=null; showSubmissionStatus(); updateResendButtonVisibility(); }
+      return !sendFailed;
     }
-
+    async function refreshRanking(result = currentSubmissionResult) {
+      if (result !== currentSubmissionResult) return;
+      const epoch = ++rankingEpoch;
+      renderRankingMessage(SongenI18n.t("s072"));
+      try { const rows = await fetchScoreRanking(30); if (epoch === rankingEpoch && result === currentSubmissionResult) renderRanking(rows); }
+      catch { if (epoch === rankingEpoch && result === currentSubmissionResult) renderRankingMessage(SongenI18n.t("s204")); }
+    }
     async function sendScoreAfterResult(result) {
+      currentSubmissionResult = result;
       const score = Math.trunc(Number(result.totalScore ?? result.score));
-      if (!Number.isFinite(score)) {
-        dom.sendStatus.textContent = "スコア値が不正のため送信できません";
-        dom.sendStatus.className = "send-status ng";
-        console.warn("invalid score", result);
-        return;
-      }
-
-      enqueuePendingScore({
-        displayName: result.playerName || runState.settings?.playerName || "名無し",
-        score,
-        clientVersion: GAME.version
-      });
-
-      if (!supabaseConfigured()) {
-        dom.sendStatus.textContent = "ランキング連携：設定後に有効になります";
-        dom.sendStatus.className = "send-status";
-        updateResendButtonVisibility();
-      } else {
-        dom.sendStatus.textContent = "ランキング保存中…";
-        dom.sendStatus.className = "send-status";
-        const sent = await flushPendingScores();
-        if (sent && !hasPendingScores()) {
-          dom.sendStatus.textContent = "ランキング登録しました";
-          dom.sendStatus.className = "send-status ok";
-        } else if (hasPendingScores()) {
-          dom.sendStatus.textContent = "ランキング保存待ちです。通信が戻ると再送します";
-          dom.sendStatus.className = "send-status ng";
-        }
-      }
-
-      try {
-        const rows = await fetchScoreRanking(10);
-        renderRanking(rows);
-      } catch (error) {
-        console.warn("ranking fetch failed", error);
-        renderRankingMessage("ランキングを読み込めませんでした");
-      }
+      const item = SongenCommon.finish(result.receipt,score,GAME.version);
+      if (item) scoreQueue.put(item);
+      showSubmissionStatus(result);
+      if (item) await flushPendingScores();
+      showSubmissionStatus(result);
+      await refreshRanking(result);
     }
-
-    function normalizeRankingRows(data) {
-      const rows = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-      return rows.slice(0, 10).map((row, index) => ({
-        rank: row.rank || row.ranking || index + 1,
-        name: sanitizeName(row.display_name || row.player_name || row.name || "名無し", "名無し", 18),
-        score: Math.trunc(Number(row.score || row.best_score || row.total_score || 0))
-      }));
-    }
-
-    async function fetchScoreRanking(limit = 10) {
+    function normalizeRankingRows(data) { return SongenCommon.ranks(data); }
+    async function fetchScoreRanking(limit = 30) {
       if (!supabaseConfigured()) throw new Error("Supabase is not configured");
-      const endpoint = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/get_best_score_ranking`;
       const key = getSupabasePublishableKey();
-      const headers = { "Content-Type": "application/json", "apikey": key, "Authorization": `Bearer ${key}` };
-      const request = async (body) => {
-        const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), keepalive: true });
-        const text = await response.text().catch(() => "");
-        if (!response.ok) throw new Error(sanitizeSubmitError(text || `HTTP ${response.status}`));
-        return normalizeRankingRows(safeParseJson(text));
-      };
-      try {
-        return await request({ p_game_slug: GAME.slug, p_limit: limit });
-      } catch (error) {
-        return (await request({ p_game_slug: GAME.slug })).slice(0, limit);
-      }
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_best_score_ranking`, {method:"POST",headers:{"Content-Type":"application/json",apikey:key,Authorization:`Bearer ${key}`},body:JSON.stringify({p_game_slug:GAME.slug,p_limit:limit})});
+      if (!response.ok) throw new Error("Ranking unavailable");
+      return normalizeRankingRows(safeParseJson(await response.text()));
     }
-
     function renderRankingMessage(message) {
-      if (!dom.rankingContent) return;
       dom.rankingContent.textContent = message;
     }
-
     function renderRanking(rows) {
-      if (!dom.rankingContent) return;
-      if (!rows || !rows.length) {
-        renderRankingMessage("ランキングはまだありません");
-        return;
-      }
-      const list = document.createElement("ol");
-      list.className = "ranking-list";
-      rows.slice(0, 10).forEach((row, index) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span>${row.rank || index + 1}位</span><span class="ranking-name"></span><strong>${Math.trunc(row.score)}点</strong>`;
-        li.querySelector(".ranking-name").textContent = row.name || "名無し";
+      if (!rows.length) return renderRankingMessage(SongenI18n.t("s205"));
+      const list = document.createElement("ol"); list.className="ranking-list";
+      for (const row of rows) {
+        const li=document.createElement("li");
+        for (const text of [String(row.rank),row.name,String(row.score)]) { const span=document.createElement("span");span.textContent=text;li.appendChild(span); }
         list.appendChild(li);
-      });
+      }
       dom.rankingContent.replaceChildren(list);
     }
 
@@ -3874,6 +3828,7 @@ hitWidth: 46,
       dom.stage?.querySelectorAll(".projectile,.float-fx").forEach((el) => el.remove());
       runState.active = false;
       runState.currentCpuProfile = null;
+      currentSubmissionResult = null; rankingEpoch += 1;
       showScreen("home");
     }
 function getSupabasePublishableKey() {
@@ -3890,31 +3845,11 @@ function getSupabasePublishableKey() {
         && !SUPABASE_URL.includes("YOUR_PROJECT_ID");
     }
 
-    async function submitScore(displayName, score, clientVersion = GAME.version) {
-      if (!supabaseConfigured()) {
-        throw new Error("Supabase is not configured");
-      }
-
-      const endpoint = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/submit_score`;
+    async function submitScore(item) {
+      if (!supabaseConfigured()) throw new Error("Supabase is not configured");
       const key = getSupabasePublishableKey();
-      const headers = {
-        "Content-Type": "application/json",
-        "apikey": key,
-        "Authorization": `Bearer ${key}`
-      };
-      const body = {
-        p_display_name: displayName,
-        p_game_slug: GAME.slug,
-        p_score: Math.trunc(score),
-        p_client_version: clientVersion || GAME.version
-      };
-
-      const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), keepalive: true });
-      const text = await response.text().catch(() => "");
-      if (!response.ok) {
-        throw new Error(sanitizeSubmitError(text || `HTTP ${response.status}`));
-      }
-      return safeParseJson(text);
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_score_once_shared_v1`,{method:"POST",headers:{"Content-Type":"application/json",apikey:key,Authorization:`Bearer ${key}`},body:JSON.stringify({p_submission_id:item.id,p_display_name:item.name,p_game_slug:GAME.slug,p_score:item.score,p_client_version:item.version})});
+      if (!response.ok || !SongenCommon.accepted(safeParseJson(await response.text()),item)) throw new Error("Score receipt was not accepted");
     }
 
     function safeParseJson(text) {
@@ -4092,7 +4027,7 @@ function getSupabasePublishableKey() {
           } catch (error) {
             // ゲーム本体は止めない。
           }
-          showToast("ゲーム中は戻る操作を無効にしています");
+          showToast(SongenI18n.t("s207"));
         }
       });
 
@@ -4137,6 +4072,8 @@ function getSupabasePublishableKey() {
         const t = Date.now();
         if (t - lastTapAt < 250) return;
         lastTapAt = t;
+        if(event?.isComposing || event?.keyCode===229) return;
+        uiAudio.play("select");
         handler(event);
       };
 
@@ -4160,7 +4097,7 @@ function getSupabasePublishableKey() {
       bindTapButton(dom.buttons.setupBack, () => showScreen("home"));
       bindTapButton(dom.buttons.setupStart, () => startRun());
       bindTapButton(dom.buttons.retire, retireBattle);
-      bindTapButton(dom.buttons.homeShare, () => shareText(`${GAME.title}　で遊ぼう！\n${GAME.url}`));
+      bindTapButton(dom.buttons.homeShare, () => shareText(SongenI18n.t("s208",[GAME.title,GAME.url])));
       bindTapButton(dom.buttons.homeLab, () => { location.href = GAME.labUrl; });
       bindTapButton(dom.buttons.outcomeResult, () => {
         continueAfterOutcome();
@@ -4169,9 +4106,9 @@ function getSupabasePublishableKey() {
         location.href = GAME.labUrl;
       });
       bindTapButton(dom.buttons.resendScore, () => {
-        dom.sendStatus.textContent = "ランキング保存中…";
+        dom.sendStatus.textContent = SongenI18n.t("s069");
         dom.sendStatus.className = "send-status";
-        flushPendingScores();
+        flushPendingScores().then(() => refreshRanking());
       });
       bindTapButton(dom.buttons.retry, () => {
         showSetup();
@@ -4184,19 +4121,17 @@ function getSupabasePublishableKey() {
         const text = runState.result ? makeDetailedReportText(runState.result) : "";
         try {
           await navigator.clipboard.writeText(text);
-          showToast("詳細レポートをコピーしました");
+          showToast(SongenI18n.t("s209"));
         } catch (error) {
           dom.detailReportFallback.value = text;
           dom.detailReportFallback.classList.remove("hidden");
-          showToast("コピーできませんでした。下のテキストを手動でコピーしてください。");
+          showToast(SongenI18n.t("s210"));
         }
       });
     }
 
     function showSetup() {
-      let saved = "";
-      try { saved = localStorage.getItem("songen_player_name") || ""; } catch (error) {}
-      if (!dom.playerNameInput.value) dom.playerNameInput.value = saved;
+      // An intentional blank is retained; restoring is done only at startup.
       showScreen("setup");
     }
 
@@ -4239,6 +4174,24 @@ function getSupabasePublishableKey() {
     }
 
     function init() {
+      SongenI18n.bind();
+      const languageSelect=document.getElementById("languageSelect");
+      const languageNames={ja:"日本語",en:"English",es:"Español","pt-BR":"Português (Brasil)","zh-Hans":"简体中文",fr:"Français",de:"Deutsch",ko:"한국어",ru:"Русский",it:"Italiano","zh-Hant":"繁體中文",id:"Bahasa Indonesia",tr:"Türkçe",vi:"Tiếng Việt",th:"ไทย"};
+      for(const locale of SongenI18n.locales){const option=document.createElement("option");option.value=locale;option.textContent=languageNames[locale];languageSelect.appendChild(option);}languageSelect.value=SongenI18n.language;
+      languageSelect.addEventListener("change",()=>{ if(!dom.screens.home.classList.contains("active"))return;SongenI18n.set(languageSelect.value); const notice=document.getElementById("legacyPendingNotice"); if(notice) notice.textContent=SongenI18n.t("s214"); });
+
+      const soundOn = document.getElementById("soundOn"), soundVolume = document.getElementById("soundVolume");
+      soundOn.checked = uiAudio.enabled; soundVolume.value = String(uiAudio.volume);
+      soundOn.addEventListener("change", () => { uiAudio.set(soundOn.checked, soundVolume.value); if(soundOn.checked) uiAudio.unlock(); });
+      soundVolume.addEventListener("input", () => uiAudio.set(soundOn.checked, soundVolume.value));
+      document.addEventListener("pointerdown", event => { if(event.target.closest?.("#soundOn,#soundVolume")) return; uiAudio.unlock(); },{capture:true});
+      document.addEventListener("keydown", event => { if(event.isComposing || event.keyCode===229 || event.target.closest?.("input,textarea,select")) return; uiAudio.unlock(); });
+      document.addEventListener("visibilitychange", () => { if(document.hidden) uiAudio.interrupt(); });
+      window.addEventListener("pagehide", () => uiAudio.interrupt());
+
+      document.getElementById("rankingRetryBtn").addEventListener("click", () => refreshRanking());
+      let oldPending = null; try { oldPending = safeStorage?.getItem(LEGACY_PENDING_KEY); } catch {}
+      if (oldPending && oldPending !== "[]") { const notice=document.createElement("p");notice.id="legacyPendingNotice";notice.className="note-text";notice.textContent=SongenI18n.t("s214");dom.screens.home.appendChild(notice); }
       initHeadGrid(dom.playerHeadGrid, "player");
       initHeadGrid(dom.cpuHeadGrid, "cpu");
       bindControls();
@@ -4254,7 +4207,7 @@ function getSupabasePublishableKey() {
         if (!document.hidden) flushPendingScores();
       });
       let saved = "";
-      try { saved = localStorage.getItem("songen_player_name") || ""; } catch (error) {}
+      try { const current=localStorage.getItem("songen_wo_kakeyouka2_player_name_v1"); saved = current !== null ? current : (localStorage.getItem("songen_player_name") || ""); if(current===null) localStorage.setItem("songen_wo_kakeyouka2_player_name_v1",saved); } catch (error) {}
       dom.playerNameInput.value = saved;
       window.addEventListener("resize", () => {
         const rect = getStageRect();

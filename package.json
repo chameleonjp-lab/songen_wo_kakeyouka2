@@ -1,0 +1,12 @@
+{
+  "name": "songen-wo-kakeyouka2",
+  "private": true,
+  "scripts": {
+    "test": "node --test scripts/*.test.mjs",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "happy-dom": "21.0.4",
+    "@playwright/test": "1.62.1"
+  }
+}
