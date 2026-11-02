@@ -49,6 +49,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="format-detection" content="telephone=no" />
   <title>尊厳を賭けようか2</title>
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/" />
+  <meta property="og:title" content="尊厳を賭けようか2" />
+  <meta property="og:description" content="壊れた体を引き継ぐ、5連戦。絵文字パーツで戦うブラウザ格闘ゲーム。" />
+  <meta property="og:image" content="https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="尊厳を賭けようか2。実ゲームの猫と熊の頭を選んだ絵文字パーツの対戦画面。" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="尊厳を賭けようか2" />
+  <meta name="twitter:description" content="壊れた体を引き継ぐ、5連戦。絵文字パーツで戦うブラウザ格闘ゲーム。" />
+  <meta name="twitter:image" content="https://chameleonjp.codeberg.page/songen_wo_kakeyouka2/assets/social-card.png" />
+  <meta name="twitter:image:alt" content="尊厳を賭けようか2。実ゲームの猫と熊の頭を選んだ絵文字パーツの対戦画面。" />
   <style>
     :root {
       /* ---- Core surfaces ---- */
@@ -3671,8 +3684,19 @@ hitWidth: 46,
       }, 650);
     }
 
+    function shareTextWeight(text) {
+      return [...text.replace(/https?:\/\/\S+/gu, "x".repeat(23))].reduce((total, character) => {
+        const point = character.codePointAt(0);
+        return total + ((point <= 0x10ff || (point >= 0x2000 && point <= 0x200d) || (point >= 0x2010 && point <= 0x201f) || (point >= 0x2032 && point <= 0x2037)) ? 1 : 2);
+      }, 0);
+    }
+
     function makeTotalShareText(runResult) {
-      return SongenI18n.t("s154",[GAME.title,runResult.resultLabel,runResult.totalScore,runResult.wins,runResult.maxBattles,describeParts(runResult.finalParts),GAME.url]);
+      const text = SongenI18n.t("s154",[GAME.title,runResult.resultLabel,runResult.totalScore,runResult.wins,runResult.maxBattles,describeParts(runResult.finalParts),GAME.url]);
+      if (shareTextWeight(text) <= 280) return text;
+      // Keep exact outcome, score, wins, URL and tags when localized injury details exceed X's budget.
+      // The full result and detailed report remain unchanged.
+      return [GAME.title, runResult.resultLabel, SongenI18n.t("s157", [runResult.totalScore]), SongenI18n.t("s158", [runResult.wins, runResult.maxBattles]), GAME.url, "#尊厳を賭けようか2 #ゲーム制作"].join("\n");
     }
 
     function signed(value) { return value >= 0 ? `+${value}` : String(value); }

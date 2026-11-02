@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
+  group: pages-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'production' || github.ref }}
   cancel-in-progress: true
 jobs:
   validate:
@@ -24,7 +24,7 @@ jobs:
       - run: python scripts/test-pages.py
       - run: python scripts/prepare-pages.py
       - uses: actions/upload-pages-artifact@v3
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           path: _site
   browser:
@@ -39,6 +39,24 @@ jobs:
       - run: npm run test:browser
         env:
           HOME: /root
+      - run: node scripts/share-capture.mjs
+        env:
+          HOME: /root
+      - run: node scripts/share-visual.mjs
+        env:
+          HOME: /root
+      - run: BROWSER_ENGINE=webkit node scripts/share-visual.mjs
+        env:
+          HOME: /root
+      - name: Preserve anonymous actual-game material
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: songen2-share-capture
+          path: |
+            test-results/share-capture/
+            test-results/share-visible/
+          if-no-files-found: ignore
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [validate, browser]
