@@ -24,7 +24,8 @@ function queue(storage,key){
  try{if(!storage)throw Error();storage.setItem(key,JSON.stringify(next));persisted=true;return true;}catch{persisted=false;return false;}}
  return {items,put,get damaged(){read();return damaged;},get conflict(){return conflict;},get persisted(){return persisted;}};
 }
-function accepted(value){const r=Array.isArray(value)&&value.length===1?value[0]:null;return !!(r&&r.accepted===true&&typeof r.result_normalized_name==='string'&&typeof r.result_display_name==='string'&&[r.result_first_score,r.result_best_score,r.result_play_count].every(Number.isSafeInteger)&&r.result_play_count>=1&&['is_first_play','is_new_best','was_duplicate'].every(k=>typeof r[k]==='boolean'));}
+function accepted(value,expected){const r=Array.isArray(value)&&value.length===1?value[0]:null;return !!(r&&r.accepted===true&&expected&&typeof expected.name==='string'&&Number.isSafeInteger(expected.score)&&r.result_best_score>=expected.score&&r.result_normalized_name===expected.name&&r.result_display_name===expected.name&&[r.result_first_score,r.result_best_score,r.result_play_count].every(n=>Number.isSafeInteger(n)&&n>=-2147483648&&n<=2147483647)&&r.result_play_count>=1&&['is_first_play','is_new_best','was_duplicate'].every(k=>typeof r[k]==='boolean'));}
 function ranks(value){if(!Array.isArray(value))throw Error('Invalid ranking response');return value.slice(0,30).map(r=>{if(!r||typeof r!=='object')throw Error('Invalid ranking row');const rank=r.rank_no??r.rank;const name=r.display_name;const score=r.best_score??r.score;if(!Number.isInteger(Number(rank))||Number(rank)<1||typeof name!=='string'||!name.trim()||score===null||score===undefined||score===''||!Number.isFinite(Number(score)))throw Error('Invalid ranking row');return {rank:Number(rank),name,score:Number(score)};});}
 root.SongenCommon={begin,finish,queue,accepted,ranks,same};
 })(globalThis);
+

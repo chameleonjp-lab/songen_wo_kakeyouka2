@@ -3849,7 +3849,7 @@ function getSupabasePublishableKey() {
       if (!supabaseConfigured()) throw new Error("Supabase is not configured");
       const key = getSupabasePublishableKey();
       const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_score_once_shared_v1`,{method:"POST",headers:{"Content-Type":"application/json",apikey:key,Authorization:`Bearer ${key}`},body:JSON.stringify({p_submission_id:item.id,p_display_name:item.name,p_game_slug:GAME.slug,p_score:item.score,p_client_version:item.version})});
-      if (!response.ok || !SongenCommon.accepted(safeParseJson(await response.text()))) throw new Error("Score receipt was not accepted");
+      if (!response.ok || !SongenCommon.accepted(safeParseJson(await response.text()),item)) throw new Error("Score receipt was not accepted");
     }
 
     function safeParseJson(text) {

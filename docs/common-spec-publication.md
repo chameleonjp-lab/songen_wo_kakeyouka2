@@ -143,3 +143,10 @@ iPhoneでの公開後確認: 縦/横でホームから開始→結果まで進�
 6. 不具合時はこのPRのrevert PRでコードを戻す。旧CodebergURL・旧localStorage・サーバー記録は消していない。新queueは消さず保全し、非冪等旧送信へそのまま流さない。
 
 iPhoneの短い確認: 縦/横・キーボード表示で名前/開始へ到達、変換確定Enterで開始しない、空欄で開始→リタイア→結果/ランキング、Xをキャンセルして結果保持、音off/0と選択言語が再読込後も維持、共有/ロックから復帰して古い音が鳴らない。これは確認依頼手順であり実機確認済みではありません。
+
+
+## 2026-11-02 09:40 JST receipt acknowledgement follow-up
+
+Baseline PR15 `453d53b92d0e8b0d9947bb2023158eb0d5a20a6d`. Real application submission tests reproduced a different owner's acknowledgement marking the durable queue as sent. Normal receipt validation now binds both names to the frozen submission and validates PostgreSQL int4 response bounds plus descending best >= submitted score. Existing signed historical/retirement scores and first score zero remain valid; no participant identity, game rule, database or production changes.
+
+Wrong owner / int4 / best-direction regression failed before the fix and now retains pending until a valid acknowledgement for the identical UUID/payload. Local full suite 33/33 and Pages validation/staging pass. Browser wrong-owner queue retry case was added; new-head Chromium/WebKit CI remains pending, separate from iPhone device acceptance. Prior migration and participant aggregation limitations remain open.
