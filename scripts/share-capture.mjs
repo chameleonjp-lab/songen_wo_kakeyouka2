@@ -23,11 +23,15 @@ try {
  });
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
  await page.goto(origin);await page.locator('#playerNameInput').fill('');
- await page.locator('#homeStartBtn').click();await page.locator('#setupStartBtn').click();
+ await page.locator('#homeStartBtn').click();
+ // Choose existing emoji heads through the real settings UI, avoiding unsupported ancient-font glyphs in this CI image.
+ await page.locator('#playerHeadGrid [data-value="😺"]').click();
+ await page.locator('#cpuHeadGrid [data-value="🐻"]').click();
+ await page.locator('#setupStartBtn').click();
  await page.waitForFunction(()=>state.running&&!state.ended&&state.player&&state.cpu);
  await page.evaluate(()=>document.fonts.ready);
  const receipt=await page.evaluate(()=>({anonymous:runState.receipt.name==='',battle:runState.battleNo,running:state.running,ended:state.ended,heads:[state.player.head,state.cpu.head],stage:{width:state.stageRect.width,height:state.stageRect.height},participants:[document.querySelector('#playerFighter').getBoundingClientRect().width,document.querySelector('#cpuFighter').getBoundingClientRect().width]}));
- assert.equal(receipt.anonymous,true);assert.equal(receipt.battle,1);assert.equal(receipt.running,true);assert.equal(receipt.ended,false);assert.ok(receipt.stage.width>100&&receipt.stage.height>100);assert.ok(receipt.participants.every(w=>w>0));
+ assert.deepEqual(receipt.heads,['😺','🐻']);assert.equal(receipt.anonymous,true);assert.equal(receipt.battle,1);assert.equal(receipt.running,true);assert.equal(receipt.ended,false);assert.ok(receipt.stage.width>100&&receipt.stage.height>100);assert.ok(receipt.participants.every(w=>w>0));
  const out=path.join(root,'test-results/share-capture');fs.mkdirSync(out,{recursive:true});
  await page.locator('#stage').screenshot({path:path.join(out,'songen2-real-battle.png')});
  assert.deepEqual(forbidden,[]);assert.deepEqual(errors,[]);
