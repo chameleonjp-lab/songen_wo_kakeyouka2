@@ -42,12 +42,20 @@ jobs:
       - run: node scripts/share-capture.mjs
         env:
           HOME: /root
+      - run: node scripts/share-visual.mjs
+        env:
+          HOME: /root
+      - run: BROWSER_ENGINE=webkit node scripts/share-visual.mjs
+        env:
+          HOME: /root
       - name: Preserve anonymous actual-game material
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: songen2-share-capture
-          path: test-results/share-capture/
+          path: |
+            test-results/share-capture/
+            test-results/share-visible/
           if-no-files-found: ignore
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
